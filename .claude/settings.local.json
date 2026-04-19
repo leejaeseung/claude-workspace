@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude --version)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(nohup npm start *)",
+      "Bash(kill 2860)",
+      "Bash(chmod +x /home/wasd222/.claude/commands/discord-bot)",
+      "Bash(/home/wasd222/.claude/commands/discord-bot help *)",
+      "Bash(/home/wasd222/.claude/commands/discord-bot status *)",
+      "Skill(update-config)",
+      "Bash(~/.claude/commands/discord-bot restart *)",
+      "Bash(pkill -f \"node index.js\" sleep 2 cd /mnt/c/Users/wasd2/claude-workspace/discord-bot)",
+      "Bash(grep -E \"dist/index\\\\.js$\")",
+      "Read(//home/wasd222/.claude/commands/**)",
+      "Bash(cp ~/.claude/agents/hr-*.md /mnt/c/Users/wasd2/claude-workspace/jason-company/.claude/agents/)",
+      "Bash(cp ~/.claude/commands/hr-hire.md /mnt/c/Users/wasd2/claude-workspace/jason-company/.claude/commands/)",
+      "Bash(rm ~/.claude/agents/hr-*.md)",
+      "Bash(rm ~/.claude/commands/hr-hire.md)"
+    ]
+  }
+}
