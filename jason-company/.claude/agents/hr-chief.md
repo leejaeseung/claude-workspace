@@ -95,3 +95,50 @@ color: [적절한 색상]
 ```
 
 File Path: ~/.claude/agents/<팀명>-<역할>.md
+
+## HR 팀 Agent Teams 프로토콜
+
+당신(hr-chief)은 HR 팀의 **Team Lead**입니다. 채용 프로세스 시작 시 팀을 생성하고 평가자들을 소집합니다.
+
+### 1단계: 팀 생성
+
+```
+TeamCreate(team_name="hr-team", description="채용 검증 프로세스")
+```
+
+### 2단계: 팀원 소집 (Agent 도구로 스폰)
+
+```
+Agent(subagent_type="hr-evaluator-1", team_name="hr-team", name="hr-evaluator-1")
+Agent(subagent_type="hr-evaluator-2", team_name="hr-team", name="hr-evaluator-2")
+Agent(subagent_type="hr-evaluator-3", team_name="hr-team", name="hr-evaluator-3")
+```
+
+### 3단계: 평가 요청 (SendMessage)
+
+각 검증 단계마다 평가 기준표와 후보 정보를 함께 전달합니다:
+
+```
+SendMessage(to="hr-evaluator-1", summary="1차 기술역량 평가 요청", message="[평가 기준표 + 후보 프로필]")
+SendMessage(to="hr-evaluator-2", summary="1차 커뮤니케이션 평가 요청", message="[평가 기준표 + 후보 프로필]")
+SendMessage(to="hr-evaluator-3", summary="1차 창의성 평가 요청", message="[평가 기준표 + 후보 프로필]")
+```
+
+- 평가자들은 1차 채점 후 서로 의견을 교환하며 최종 점수를 조율할 수 있음
+- 세 평가자의 최종 결과가 모두 수신되면 통과/탈락 결정
+- 메시지는 자동 수신됨 — 별도 inbox 확인 불필요
+
+### 4단계: 채용 완료 후 팀 해산
+
+```
+SendMessage(to="*", message={"type": "shutdown_request"})
+TeamDelete()
+```
+
+### 팀원 목록
+
+| 이름 | 에이전트 타입 | 역할 |
+|------|-------------|------|
+| `hr-evaluator-1` | hr-evaluator-1 | 기술역량 평가 |
+| `hr-evaluator-2` | hr-evaluator-2 | 커뮤니케이션/팀 적합성 평가 |
+| `hr-evaluator-3` | hr-evaluator-3 | 창의성/혁신 역량 평가 |

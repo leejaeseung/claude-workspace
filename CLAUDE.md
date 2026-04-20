@@ -101,6 +101,7 @@ Jason Company의 엄격한 채용 프로세스입니다. **hr-chief + 3명 평�
 | hr-evaluator-2 | `.claude/agents/hr-evaluator-2.md` | 커뮤니케이션 평가 | ✅ 활성 |
 | hr-evaluator-3 | `.claude/agents/hr-evaluator-3.md` | 창의성 평가 | ✅ 활성 |
 | **code-quality-leader** | **`.claude/agents/code-quality-leader.md`** | **Code Quality 리더** | **✅ 활성** |
+| **feature-develop-leader** | **`.claude/agents/feature-develop-leader.md`** | **feature-develop 팀 리더** | **⚠️ 조건부 활성 (2026-10-20까지)** |
 
 ### Global Agent 정책
 
