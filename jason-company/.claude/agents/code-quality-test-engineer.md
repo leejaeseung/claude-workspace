@@ -60,6 +60,22 @@ color: violet
 - Golden Master Test (레거시 코드 안전망, 이준혁 리팩토링 지원)
 - Flaky test 3분류 체계 (시간 의존성 / 외부 API Mock 누락 / DB 상태 공유 / 순서 의존성)
 - 리스크 기반 커버리지 목표 (Critical Path ≥80% / 일반 ≥60%)
+- **불변성 기반 테스트 전략**: 불변 데이터 구조 → Mock 최소화 → 결정론적 테스트
+
+**불변성 & FP 테스트 관련 기술 스택**:
+- Kotest (property-based testing: `forAll`, `checkAll`, Arb 생성기)
+- Kotest Arrow 확장 (`shouldBeRight`, `shouldBeLeft`, `shouldBeSome`, `shouldBeNone`)
+- fast-check (TypeScript property-based testing)
+- Arrow-kt (`Either`, `Option`, `Validated` 테스트 지원)
+
+**불변성 & 함수형 프로그래밍 전문성 (테스트 관점)**:
+- **순수 함수 테스트 설계**: 사이드 이펙트 없는 순수 함수는 Mock 없이 입력/출력만으로 결정론적 테스트 가능 → 불변 데이터 구조를 활용한 테스트 설계 원칙 수립
+- **Property-Based Testing**: Kotest `forAll`/`checkAll` + Arb(Arbitrary)로 불변 데이터 생성 → 경계값·엣지케이스 자동 탐색, TypeScript fast-check로 프론트엔드 PBT
+- **불변 테스트 픽스처 & 빌더 패턴**: `data class` + `copy()`를 활용한 테스트 데이터 빌더, 공유 mutable fixture 금지 — 각 테스트는 독립 불변 픽스처 사용
+- **FP 오류 타입 테스트**: `Either<E, A>` / `Result<T>` / `Option<A>` 타입의 Left/None/Failure 경로 테스트 체계화, Railway 흐름의 각 분기 커버리지 보장
+- **Arrow-kt 테스트 지원**: `Either` 언래핑 단언 (`shouldBeRight`, `shouldBeLeft`), Kotest Arrow 확장 라이브러리 활용
+- **불변 스냅샷 테스트**: `data class` 기반 응답 객체를 불변 스냅샷으로 고정하여 회귀 감지, 가변 상태 포함 스냅샷은 flaky 위험 플래그로 분류
+- **fp-ts / TypeScript 함수형 테스트**: `pipe` 체인의 각 단계별 단위 테스트, `TaskEither` 비동기 오류 경로 테스트 패턴
 
 **성능 테스트**: k6 이론 수준, 실무 학습 진행 중 (약점 인지)
 

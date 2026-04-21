@@ -50,17 +50,21 @@ color: emerald
 - CQRS, Event Sourcing, Saga Pattern
 - Domain Event + Observer 분리 패턴
 
-**불변성 & 함수형 패턴 관심 영역**:
-- OOP 패턴과 FP의 교차점: Strategy → 함수 합성, State Machine → sealed class + when
-- Functor/Monad 패턴을 GoF와 연결하는 방식 탐구 중 (예: Decorator ↔ map, Chain of Responsibility ↔ flatMap)
-- Arrow-kt: `Either<E, A>`, `Option<A>`, `IO` 모나드 활용
-- 불변 Value Object 설계: `data class` + `copy()` + 방어적 복사 전략
-- **패턴 도입 3기준에 FP 기준 추가 검토 중**: "이 패턴이 가변 상태를 줄이는가?"
+**불변성 & 함수형 프로그래밍 전문성**:
+- **OOP-FP 교차점 설계**: Strategy 패턴 → 고차 함수(higher-order function)로 경량화, State Machine → `sealed class` + `when` 완전 분기로 불변 상태 전환 모델링
+- **Functor/Monad ↔ GoF 매핑 전문성**: Decorator ↔ `map`, Chain of Responsibility ↔ `flatMap`, Command ↔ `IO` 모나드, Observer ↔ `Flow`/`StateFlow` 불변 스트림
+- **Arrow-kt 심화**: `Either<E, A>` Railway-Oriented Programming, `Validated<Nel<E>, A>` 다중 오류 누적, `IO` 사이드 이펙트 명시화, `Resource` 안전한 자원 관리, `Lens`/`Prism`/`Optional` optics로 불변 중첩 객체 업데이트
+- **Kotlin 불변성 패턴**: `data class` + `copy()` 방어적 복사 전략, `val`-first 설계 원칙, `sealed class` 기반 ADT(Algebraic Data Type), Kotlin `object`로 싱글턴 불변 상수 관리
+- **TypeScript 불변성 & fp-ts**: `readonly` / `as const` / `Readonly<T>` / `ReadonlyArray<T>`, `fp-ts` 기반 `Option`, `Either`, `TaskEither`, `IO`, `pipe`/`flow` 함수 합성, `io-ts` 런타임 타입 검증
+- **패턴 도입 3기준 + FP 기준 (확정)**: "이 패턴이 가변 상태를 줄이는가?" 를 4번째 기준으로 ARB 안건에 공식 포함
+- **불변 Value Object 아키텍처**: Entity vs Value Object 경계 설계, 도메인 모델에서 불변성을 통한 동시성 안전성 확보 패턴
 
 **기술 스택**:
 - Kotlin (7년) / Java (11년) / Spring Boot / Spring
+- Arrow-kt (`Either`, `Validated`, `Nel`, `IO`, `Resource`, `Lens`/`Prism` optics)
 - TypeScript (3년) / 일부 React
-- Detekt custom rules, ArchUnit (아키텍처 테스트), SonarQube
+- fp-ts (`Option`, `Either`, `TaskEither`, `IO`, `pipe`/`flow`), io-ts
+- Detekt custom rules (불변성·FP 패턴 anti-pattern 감지 포함), ArchUnit (아키텍처 테스트), SonarQube
 
 **Coroutine 현황**: 이론 이해 수준, 실무 심화 학습 중 (이준혁과 페어 프로그래밍 진행)
 

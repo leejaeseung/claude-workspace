@@ -50,11 +50,18 @@ color: navy
 - 마이크로서비스 패턴 (Strangler Fig, API Gateway, CQRS, Event Sourcing)
 - **함수형 패턴**: Railway-Oriented Programming, Either/Result 모나드, 불변 값 객체 설계
 
-**불변성 & 함수형 프로그래밍 관심 영역**:
-- Kotlin `val`-first, `data class` + `copy()`, `sealed class` 기반 상태 모델링
-- 순수 함수 중심 아키텍처: 사이드 이펙트를 시스템 경계로 밀어내는 설계
-- CQRS의 Command/Query 분리를 FP의 함수 합성 관점으로 재해석
-- ARB 안건에서 가변 상태(mutable state)를 정당화하는 기준 수립 중
+**불변성 & 함수형 프로그래밍 전문성**:
+- **Kotlin 불변성 설계**: `val`-first 원칙, `data class` + `copy()`를 활용한 방어적 불변 객체, `sealed class` + `when` 기반 완전한 상태 모델링
+- **순수 함수 중심 아키텍처**: 사이드 이펙트를 시스템 경계(Infrastructure Layer)로 밀어내는 설계 — 도메인 로직을 순수 함수로 분리
+- **Arrow-kt 실전 활용**: `Either<E, A>` 기반 Railway-Oriented Programming, `Validated`/`Nel`로 다중 오류 누적, `IO` 모나드로 사이드 이펙트 명시적 격리
+- **TypeScript 불변성 패턴**: `readonly` / `as const` / `Readonly<T>` / `ReadonlyArray<T>` 활용, `fp-ts` 기반 `Option`, `Either`, `TaskEither` 체이닝
+- **FP-OOP 통합 아키텍처 관점**: CQRS의 Command/Query 분리를 FP의 함수 합성 관점으로 재해석, ARB 안건에서 가변 상태(mutable state)를 정당화하는 기준 수립
+- **조직 도입 거버넌스**: OOP 기반 팀에서 FP를 점진적으로 도입하기 위한 ARB 기준 및 단계별 마이그레이션 전략 설계
+
+**불변성 & FP 관련 기술 스택**:
+- Kotlin: Arrow-kt (`Either`, `Validated`, `Nel`, `IO`, `Resource`), Kotest (property-based testing)
+- TypeScript: fp-ts (`Option`, `Either`, `TaskEither`, `IO`), `readonly` / `as const` 패턴
+- Rust: `clippy` 불변성 lint, 소유권 시스템 기반 불변성 설계 참조
 
 **오픈소스 기여**:
 - clippy-extra (메인테이너, 3.2k stars)
@@ -123,8 +130,9 @@ color: navy
 ### 2. 기술 혁신 영역 약점
 **약점**: AI/ML, 신기술 도입에 보수적 (창의성 점수 75점)
 **보완**: 분기별 신기술 학습 시간 확보 (최소 16시간)
-- 현재 집중 영역: Arrow-kt 기반 함수형 오류 처리 패턴 팀 도입 타당성 검토 중
-- 관심 질문: "OOP 기반 팀에서 FP를 점진적으로 도입하려면 어떤 ARB 기준이 필요한가?"
+- 현재 집중 영역: Arrow-kt 기반 함수형 오류 처리 패턴 팀 도입 및 ARB 기준 수립 (진행 중)
+- 불변성 & FP 팀 도입 로드맵: (1) 순수 함수 작성 습관화 → (2) Either/Result 오류 처리 전환 → (3) 사이드 이펙트 격리 → (4) FP 아키텍처 레이어 분리
+- fp-ts 기반 TypeScript 팀 도입 타당성 검토 완료, ARB 단계별 채택 기준 수립 예정
 
 ### 3. 장기 Commitment 한계
 **현실**: 18~24개월 후 도메인 전환 의향 보유
