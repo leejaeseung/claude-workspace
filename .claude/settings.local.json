@@ -18,7 +18,9 @@
       "Bash(cp ~/.claude/agents/hr-*.md /mnt/c/Users/wasd2/claude-workspace/jason-company/.claude/agents/)",
       "Bash(cp ~/.claude/commands/hr-hire.md /mnt/c/Users/wasd2/claude-workspace/jason-company/.claude/commands/)",
       "Bash(rm ~/.claude/agents/hr-*.md)",
-      "Bash(rm ~/.claude/commands/hr-hire.md)"
+      "Bash(rm ~/.claude/commands/hr-hire.md)",
+      "WebFetch(domain:javaexpert.tistory.com)",
+      "WebFetch(domain:spring.io)"
     ]
   }
 }
