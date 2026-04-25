@@ -1,6 +1,6 @@
 # LLM Wiki — 인덱스
 
-> 최종 갱신: 2026-04-21
+> 최종 갱신: 2026-04-25
 
 ---
 
@@ -11,11 +11,21 @@ llm-wiki/
 ├── raw/                  # 원본 자료 (불변, 읽기 전용)
 ├── wiki/
 │   ├── concepts/         # Wiki 운영 개념
+│   ├── kotlin/           # Kotlin 생태계
 │   └── spring/           # Spring 생태계
 │       └── spring-batch/ # Spring Batch 상세
 ├── index.md              # 이 파일 — 전체 카탈로그
 └── log.md                # 처리 기록
 ```
+
+---
+
+## Kotlin 위키
+
+| 페이지 | 설명 |
+|--------|------|
+| [[wiki/kotlin/coroutine-stream-broadcast]] | Coroutine에서 Stream을 활용한 데이터 Broadcast (SharedFlow/StateFlow/Channel) |
+| [[wiki/kotlin/coroutine-subscriber-pause-resume]] | Broadcast Stream에서 Subscriber 중단과 재개, 놓친 값 처리 전략 |
 
 ---
 
@@ -49,6 +59,7 @@ llm-wiki/
 |------|------|--------|
 | [[raw/karpathy-llm-wiki-2026]] | Andrej Karpathy의 LLM Wiki 방법론 | 2026-04-21 |
 | [[raw/spring-batch-official-docs-2026]] | Spring Batch 공식 문서 (v6.0.3) | 2026-04-21 |
+| [[raw/kotlin-coroutines-flow-official-2026]] | Kotlin Coroutines Flow/Channel 공식 문서 | 2026-04-25 |
 
 ---
 
@@ -61,3 +72,10 @@ llm-wiki/
 - `#llm-활용` → [[wiki/llm-wiki-methodology]]
 - `#지식관리` → [[wiki/concepts/knowledge-accumulation]]
 - `#wiki-운영` → [[wiki/concepts/schema-rules]], [[wiki/concepts/raw-sources]]
+- `#kotlin` → [[wiki/kotlin/coroutine-stream-broadcast]]
+- `#coroutine` → [[wiki/kotlin/coroutine-stream-broadcast]]
+- `#broadcast` → [[wiki/kotlin/coroutine-stream-broadcast]]
+- `#SharedFlow` → [[wiki/kotlin/coroutine-stream-broadcast]], [[wiki/kotlin/coroutine-subscriber-pause-resume]]
+- `#StateFlow` → [[wiki/kotlin/coroutine-stream-broadcast]], [[wiki/kotlin/coroutine-subscriber-pause-resume]]
+- `#backpressure` → [[wiki/kotlin/coroutine-subscriber-pause-resume]]
+- `#replay-cache` → [[wiki/kotlin/coroutine-subscriber-pause-resume]]

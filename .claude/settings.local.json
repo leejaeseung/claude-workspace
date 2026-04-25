@@ -20,7 +20,9 @@
       "Bash(rm ~/.claude/agents/hr-*.md)",
       "Bash(rm ~/.claude/commands/hr-hire.md)",
       "WebFetch(domain:javaexpert.tistory.com)",
-      "WebFetch(domain:spring.io)"
+      "WebFetch(domain:spring.io)",
+      "WebSearch",
+      "WebFetch(domain:kotlin.github.io)"
     ]
   }
 }
