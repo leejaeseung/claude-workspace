@@ -28,19 +28,17 @@ class OrderExpiryScheduler(
         )
         if (expiredOrders.isEmpty()) return
 
-        expiredOrders.forEach { order ->
+        // N+1 방지: 루프 안 개별 save() → 일괄 수집 후 saveAll() 배치 INSERT
+        val outboxEntities = expiredOrders.map { order ->
             order.status = OrderEntity.OrderStatus.EXPIRED
-
-            val event = OrderExpiredEvent(orderId = order.id)
-            outboxRepository.save(
-                OutboxEntity(
-                    aggregateType = "Order",
-                    aggregateId = order.id.toString(),
-                    eventType = "OrderExpired",
-                    payload = objectMapper.writeValueAsString(event),
-                )
+            OutboxEntity(
+                aggregateType = "Order",
+                aggregateId = order.id.toString(),
+                eventType = "OrderExpired",
+                payload = objectMapper.writeValueAsString(OrderExpiredEvent(orderId = order.id)),
             )
         }
+        outboxRepository.saveAll(outboxEntities)
         orderRepository.saveAll(expiredOrders)
     }
 }

@@ -1,15 +1,19 @@
 package com.ticketrush.seat
 
 import arrow.core.Either
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.ticketrush.domain.error.DomainError
 import com.ticketrush.seat.repository.SeatRepository
 import com.ticketrush.seat.service.SeatEventPublisher
 import com.ticketrush.seat.service.SeatLockService
+import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
+import java.time.Duration
 
 @RestController
 @RequestMapping("/seats")
@@ -17,6 +21,8 @@ class SeatController(
     private val seatLockService: SeatLockService,
     private val seatEventPublisher: SeatEventPublisher,
     private val seatRepository: SeatRepository,
+    private val redisTemplate: ReactiveRedisTemplate<String, String>,
+    private val objectMapper: ObjectMapper,
 ) {
     data class LockRequest(val userId: String, val showId: Long)
     data class LockResponse(val seatId: Long, val userId: String, val expiresAt: String)
@@ -96,17 +102,35 @@ class SeatController(
                 }
             }
 
+    /**
+     * 전체 좌석 스냅샷 조회. Redis 캐시 TTL 1s 적용 (ADR-008).
+     * 클라이언트는 이 엔드포인트로 초기 상태를 받은 뒤 SSE(/seats/stream)를 구독해야 한다.
+     * 대량 동시 접속 시 동일 showId에 대한 DB 쿼리를 1초 동안 1회로 압축한다.
+     */
     @GetMapping
-    fun listByShow(@RequestParam showId: Long): Mono<ResponseEntity<List<SeatStatusResponse>>> =
-        Mono.fromCallable {
-            seatRepository.findByShowId(showId).map { seat ->
-                SeatStatusResponse(
-                    seatId = seat.id,
-                    seatNumber = seat.seatNumber,
-                    status = seat.status.name,
-                )
+    fun listByShow(@RequestParam showId: Long): Mono<ResponseEntity<List<SeatStatusResponse>>> {
+        val cacheKey = "seat-list:$showId"
+        return redisTemplate.opsForValue().get(cacheKey)
+            .map<List<SeatStatusResponse>> { json ->
+                objectMapper.readValue(json)
             }
-        }
-        .subscribeOn(Schedulers.boundedElastic())
-        .map { ResponseEntity.ok(it) }
+            .switchIfEmpty(
+                Mono.fromCallable {
+                    seatRepository.findByShowId(showId).map { seat ->
+                        SeatStatusResponse(
+                            seatId = seat.id,
+                            seatNumber = seat.seatNumber,
+                            status = seat.status.name,
+                        )
+                    }
+                }
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap { seats ->
+                    redisTemplate.opsForValue()
+                        .set(cacheKey, objectMapper.writeValueAsString(seats), Duration.ofSeconds(1))
+                        .thenReturn(seats)
+                }
+            )
+            .map { ResponseEntity.ok(it) }
+    }
 }

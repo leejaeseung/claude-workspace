@@ -2,8 +2,11 @@ package com.ticketrush.seat
 
 import arrow.core.left
 import arrow.core.right
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.ticketrush.domain.error.DomainError
 import com.ticketrush.domain.seat.SeatLock
+import com.ticketrush.seat.entity.SeatEntity
 import com.ticketrush.seat.repository.SeatRepository
 import com.ticketrush.seat.service.SeatEventPublisher
 import com.ticketrush.seat.service.SeatLockService
@@ -15,21 +18,32 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.data.redis.core.ReactiveRedisTemplate
+import org.springframework.data.redis.core.ReactiveValueOperations
 import org.springframework.http.HttpStatus
 import reactor.core.publisher.Mono
+import java.time.Duration
 import java.time.Instant
 
 /**
  * SeatController 단위 테스트 — W5 k6 부하 테스트 대상 엔드포인트 검증
- * Redis Lua(/lock) 와 SELECT FOR UPDATE(/lock-db) 두 경로를 함께 커버한다.
+ * Redis Lua(/lock), SELECT FOR UPDATE(/lock-db), GET /seats 캐시 경로를 커버한다.
  */
 class SeatControllerTest : DescribeSpec({
+
+    val mapper = ObjectMapper().registerKotlinModule()
 
     fun buildDeps() = object {
         val lockService: SeatLockService = mock()
         val eventPublisher: SeatEventPublisher = mock()
         val seatRepository: SeatRepository = mock()
-        val controller: SeatController = SeatController(lockService, eventPublisher, seatRepository)
+        @Suppress("UNCHECKED_CAST")
+        val valueOps: ReactiveValueOperations<String, String> = mock()
+        @Suppress("UNCHECKED_CAST")
+        val redisTemplate: ReactiveRedisTemplate<String, String> = mock<ReactiveRedisTemplate<String, String>>().also {
+            whenever(it.opsForValue()).thenReturn(valueOps)
+        }
+        val controller: SeatController = SeatController(lockService, eventPublisher, seatRepository, redisTemplate, mapper)
     }
 
     fun seatLock(seatId: Long = 1L, userId: String = "u1") = SeatLock(
@@ -119,6 +133,41 @@ class SeatControllerTest : DescribeSpec({
             val response = d.controller.unlock(10L, "u1", 1L).block()!!
 
             response.statusCode shouldBe HttpStatus.NOT_FOUND
+        }
+    }
+
+    describe("GET /seats — 좌석 목록 (Redis 캐시 TTL 1s, ADR-008)") {
+
+        it("캐시 미스 — DB를 조회하고 Redis에 1초 TTL로 저장한다") {
+            val d = buildDeps()
+            val seats = listOf(
+                SeatEntity(id = 1L, showId = 1L, seatNumber = "A1", status = SeatEntity.SeatStatus.AVAILABLE),
+                SeatEntity(id = 2L, showId = 1L, seatNumber = "A2", status = SeatEntity.SeatStatus.LOCKED),
+            )
+            whenever(d.valueOps.get(any<String>())).thenReturn(Mono.empty())
+            whenever(d.seatRepository.findByShowId(1L)).thenReturn(seats)
+            whenever(d.valueOps.set(any(), any(), any<Duration>())).thenReturn(Mono.just(true))
+
+            val response = d.controller.listByShow(1L).block()!!
+
+            response.statusCode shouldBe HttpStatus.OK
+            val body = response.body!!
+            body.size shouldBe 2
+            body[0].seatId shouldBe 1L
+            body[1].status shouldBe "LOCKED"
+            verify(d.valueOps).set(eq("seat-list:1"), any(), eq(Duration.ofSeconds(1)))
+        }
+
+        it("캐시 히트 — DB 조회 없이 Redis 값을 반환한다") {
+            val d = buildDeps()
+            val cached = """[{"seatId":1,"seatNumber":"A1","status":"AVAILABLE"}]"""
+            whenever(d.valueOps.get(eq("seat-list:1"))).thenReturn(Mono.just(cached))
+
+            val response = d.controller.listByShow(1L).block()!!
+
+            response.statusCode shouldBe HttpStatus.OK
+            response.body!!.size shouldBe 1
+            verify(d.seatRepository, never()).findByShowId(any())
         }
     }
 })
