@@ -1,0 +1,19 @@
+# TicketRush CODEOWNERS
+# ADR-003: G3 갈등 조율 산출물 — BE-FE 계약 변경 시 양측 리뷰 강제
+# 관련 문서: docs/adr/ADR-003-openapi-contract-ownership.md
+
+# OpenAPI 계약 파일 — BE 리드(하진우) + FE 담당(강민서) 동시 승인 필수
+contracts/openapi.yaml         @feature-develop-developer-2 @feature-develop-developer-1
+contracts/sse-events.md        @feature-develop-developer-2 @feature-develop-developer-1
+
+# Kafka 이벤트 계약 — BE 시니어(하진우) + FE 담당(강민서) 동시 승인 필수
+# event-contract 변경은 seat-api consumer + FE SSE 파싱 모두에 영향
+event-contract/                @feature-develop-developer-2 @feature-develop-developer-1
+
+# 인프라 설정 — 팀 리더 최종 승인
+docker-compose.yml             @feature-develop-leader
+monitoring/                    @feature-develop-leader @feature-develop-developer-2
+k6/                            @feature-develop-leader
+
+# 아키텍처 결정 기록 — 팀 리더 + 관련 당사자
+docs/adr/                      @feature-develop-leader
