@@ -1,0 +1,47 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 로그
+*.log
+logs/
+bot.log
+
+# 환경변수
+.env
+.env.*
+!.env.example
+
+# 임시/스크래치 파일
+screenshot*.png
+*.tmp
+*.bak
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+dist/
+*.egg-info/
+
+# Java / Kotlin (Gradle)
+build/
+.gradle/
+out/
+
+# OpenSearch / Docker
+docker/data/
+
+# 기타 빌드 산출물
+target/

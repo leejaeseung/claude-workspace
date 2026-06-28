@@ -1,8 +1,0 @@
-package {{ pkg_name }}.repository
-
-import {{ pkg_name }}.entity.{{ entity.name }}
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.stereotype.Repository
-
-@Repository
-interface {{ entity.name }}Repository : JpaRepository<{{ entity.name }}, Long>
