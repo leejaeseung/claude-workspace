@@ -16,6 +16,33 @@ HR 팀의 채용 프로세스를 관리합니다. (3단계 검증 + 팀 리더 �
 /hr-hire <팀명> <역할명> - <역할 요건 설명>
 ```
 
+### /opensearch
+OpenSearch Client 로컬 개발 환경을 관리합니다.
+샘플 데이터 500건(products 200, orders 200, users 100)을 매번 재생성합니다.
+
+실행 예시:
+```bash
+/opensearch start     # OpenSearch 서버 + 샘플 데이터 시드 + 앱 실행 (한 번에)
+cd /mnt/c/Users/wasd2/claude-workspace/opensearch-client && bash start-local.sh
+```
+
+```bash
+/opensearch seed      # 샘플 데이터만 재시드 (앱 재시작 없이)
+python3 /mnt/c/Users/wasd2/claude-workspace/opensearch-client/docker/seed-data.py
+```
+
+```bash
+/opensearch stop      # 앱 + OpenSearch 서버 중지
+pkill -f "com.jasoncompany.opensearchclient.MainKt"; pkill -f "org.opensearch.bootstrap.OpenSearch"
+```
+
+```bash
+/opensearch logs      # 앱 로그 확인
+tail -50 /tmp/opensearch-app.log
+```
+
+---
+
 ### /discord-bot
 Discord Bot을 관리합니다.
 

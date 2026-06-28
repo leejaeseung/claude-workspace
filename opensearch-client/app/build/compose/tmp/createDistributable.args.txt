@@ -1,0 +1,30 @@
+--input
+"C:\\Users\\wasd2\\claude-workspace\\opensearch-client\\app\\build\\compose\\tmp\\createDistributable\\libs"
+--runtime-image
+"C:\\Users\\wasd2\\claude-workspace\\opensearch-client\\app\\build\\compose\\tmp\\main\\runtime"
+--resource-dir
+"C:\\Users\\wasd2\\claude-workspace\\opensearch-client\\app\\build\\compose\\tmp\\resources"
+--java-options
+"'-Dcompose.application.resources.dir=$APPDIR\\resources'"
+--main-jar
+"opensearch-client-1.0.0-53d5f2b0546de4e761252ea3b0ff5ac0.jar"
+--main-class
+"com.jasoncompany.opensearchclient.MainKt"
+--icon
+"C:\\Users\\wasd2\\claude-workspace\\opensearch-client\\app\\build\\compose\\default-resources\\1.8.0\\default-icon-windows.ico"
+--java-options
+"'-Dcompose.application.configure.swing.globals=true'"
+--java-options
+"'-Dskiko.library.path=$APPDIR'"
+--type
+"app-image"
+--dest
+"C:\\Users\\wasd2\\claude-workspace\\opensearch-client\\app\\build\\compose\\binaries\\main\\app"
+--name
+"OpenSearch Client"
+--description
+"Jason Company OpenSearch Query Client"
+--app-version
+"1.0.0"
+--vendor
+"Jason Company"

@@ -1,0 +1,55 @@
+package {{ pkg_name }}.service;
+
+import {{ pkg_name }}.dto.{{ entity.name }}CreateDto;
+import {{ pkg_name }}.dto.{{ entity.name }}ResponseDto;
+import {{ pkg_name }}.dto.{{ entity.name }}UpdateDto;
+import {{ pkg_name }}.entity.{{ entity.name }};
+import {{ pkg_name }}.repository.{{ entity.name }}Repository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class {{ entity.name }}Service {
+
+    private final {{ entity.name }}Repository repository;
+
+    public List<{{ entity.name }}ResponseDto> findAll() {
+        return repository.findAll().stream()
+                .map({{ entity.name }}ResponseDto::from)
+                .collect(Collectors.toList());
+    }
+
+    public {{ entity.name }}ResponseDto findById(Long id) {
+        return repository.findById(id)
+                .map({{ entity.name }}ResponseDto::from)
+                .orElseThrow(() -> new RuntimeException("{{ entity.name }} not found: " + id));
+    }
+
+    @Transactional
+    public {{ entity.name }}ResponseDto create({{ entity.name }}CreateDto dto) {
+        {{ entity.name }} entity = dto.toEntity();
+        return {{ entity.name }}ResponseDto.from(repository.save(entity));
+    }
+
+    @Transactional
+    public {{ entity.name }}ResponseDto update(Long id, {{ entity.name }}UpdateDto dto) {
+        {{ entity.name }} entity = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("{{ entity.name }} not found: " + id));
+        dto.applyTo(entity);
+        return {{ entity.name }}ResponseDto.from(repository.save(entity));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!repository.existsById(id)) {
+            throw new RuntimeException("{{ entity.name }} not found: " + id);
+        }
+        repository.deleteById(id);
+    }
+}

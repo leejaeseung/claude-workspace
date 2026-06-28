@@ -1,0 +1,65 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: payment-api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ticketrush
+    username: ticketrush
+    password: ticketrush
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: payment-api
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 200
+      heartbeat-interval: 3000ms
+      session-timeout: 15000ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics,circuitbreakers,retries
+  health:
+    circuitbreakers:
+      enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      mock-pg:
+        # 슬라이딩 윈도우 10회 기준, 실패율 50% 초과 시 OPEN
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        # OPEN 상태 유지 시간 (ms) — 10초 후 HALF_OPEN 시도
+        wait-duration-in-open-state: 10000
+        # HALF_OPEN에서 통과 허용 횟수
+        permitted-number-of-calls-in-half-open-state: 3
+        # OPEN 시 즉시 예외 발생 (fallback은 processPayment에서 DomainError 반환)
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+  retry:
+    instances:
+      mock-pg:
+        # 최대 3회 시도 (최초 1회 + 재시도 2회)
+        max-attempts: 3
+        # 재시도 간격 500ms (지수 백오프 없음 — Mock PG이므로 단순 고정 간격)
+        wait-duration: 500ms
+        # RuntimeException 계열만 재시도 (CallNotPermittedException 제외 — CB OPEN 중 재시도 불필요)
+        retry-exceptions:
+          - java.lang.RuntimeException
+        ignore-exceptions:
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException

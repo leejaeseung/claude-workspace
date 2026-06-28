@@ -1,0 +1,35 @@
+{% for entity in diagram.entities %}
+CREATE TABLE IF NOT EXISTS {{ entity.name_plural_snake }} (
+    {% for f in entity.fields %}
+    {% if f.primary_key %}
+    {{ f.name }} BIGSERIAL PRIMARY KEY{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'int' %}
+    {{ f.name }} BIGINT{% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'string' %}
+    {{ f.name }} VARCHAR(255){% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'text' %}
+    {{ f.name }} TEXT{% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'float' %}
+    {{ f.name }} DECIMAL(19,4){% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'boolean' %}
+    {{ f.name }} BOOLEAN{% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'datetime' %}
+    {{ f.name }} TIMESTAMP{% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% elif f.type.value == 'date' %}
+    {{ f.name }} DATE{% if not f.nullable %} NOT NULL{% endif %}{% if not loop.last %},{% endif %}
+
+    {% else %}
+    {{ f.name }} TEXT{% if not loop.last %},{% endif %}
+
+    {% endif %}
+    {% endfor %}
+);
+
+{% endfor %}

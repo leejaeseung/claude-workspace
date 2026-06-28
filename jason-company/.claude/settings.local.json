@@ -1,10 +1,11 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "permissions": {
     "allow": [
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(chmod +x *)"
     ]
-  },
-  "env": {
-     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   }
 }

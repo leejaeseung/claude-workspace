@@ -1,0 +1,25 @@
+from sqlalchemy import Column, ForeignKey, {{ sa_types | join(", ") }}
+from sqlalchemy.orm import relationship
+from app.database import Base
+
+
+class {{ entity.name }}(Base):
+    __tablename__ = "{{ entity.name_plural_snake }}"
+
+    {% for f in entity.fields %}
+    {% if f.primary_key %}
+    {{ f.name }} = Column({{ f.sa_type }}, primary_key=True, index=True, autoincrement=True)
+    {% elif f.foreign_key %}
+    {{ f.name }} = Column({{ f.sa_type }}, ForeignKey("{{ fk_table_map.get(f.name, f.name | replace('_id', 's')) }}.id"), nullable={{ f.nullable }})
+    {% else %}
+    {{ f.name }} = Column({{ f.sa_type }}, nullable={{ f.nullable }})
+    {% endif %}
+    {% endfor %}
+
+    {% for rel in relations %}
+    {% if rel.is_collection %}
+    {{ rel.to_entity | lower }}s = relationship("{{ rel.to_entity }}", backref="{{ entity.name_lower }}", lazy="select")
+    {% else %}
+    {{ rel.to_entity | lower }} = relationship("{{ rel.to_entity }}", backref="{{ entity.name_lower }}s", lazy="select")
+    {% endif %}
+    {% endfor %}

@@ -1,0 +1,27 @@
+erDiagram
+    User {
+        int id PK
+        string email
+        string name
+        datetime created_at
+    }
+    Category {
+        int id PK
+        string name
+        string color
+        int user_id FK
+    }
+    Todo {
+        int id PK
+        string title
+        text description
+        boolean completed
+        date due_date
+        int user_id FK
+        int category_id FK
+        datetime created_at
+        datetime updated_at
+    }
+    User ||--o{ Category : "creates"
+    User ||--o{ Todo : "owns"
+    Category ||--o{ Todo : "contains"

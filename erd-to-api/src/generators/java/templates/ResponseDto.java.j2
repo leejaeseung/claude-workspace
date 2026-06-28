@@ -1,0 +1,26 @@
+package {{ pkg_name }}.dto;
+
+import {{ pkg_name }}.entity.{{ entity.name }};
+import lombok.*;
+{% for imp in java_imports %}
+import {{ imp }};
+{% endfor %}
+
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class {{ entity.name }}ResponseDto {
+
+    {% for f in entity.fields %}
+    private {{ f.java_type }} {{ f.name }};
+    {% endfor %}
+
+    public static {{ entity.name }}ResponseDto from({{ entity.name }} entity) {
+        return {{ entity.name }}ResponseDto.builder()
+                {% for f in entity.fields %}
+                .{{ f.name }}(entity.get{{ f.name[0].upper() + f.name[1:] }}())
+                {% endfor %}
+                .build();
+    }
+}

@@ -1,0 +1,16 @@
+.gradle/
+build/
+*.class
+*.jar
+!gradle-wrapper.jar
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.DS_Store
+node_modules/
+dist/
+.env
+.env.local
+web-fe/.vite/

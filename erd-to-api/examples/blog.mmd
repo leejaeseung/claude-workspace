@@ -1,0 +1,25 @@
+erDiagram
+    User {
+        int id PK
+        string email
+        string password
+        string name
+        datetime created_at
+    }
+    Post {
+        int id PK
+        string title
+        text content
+        int user_id FK
+        datetime created_at
+    }
+    Comment {
+        int id PK
+        text content
+        int user_id FK
+        int post_id FK
+        datetime created_at
+    }
+    User ||--o{ Post : "writes"
+    User ||--o{ Comment : "writes"
+    Post ||--o{ Comment : "has"

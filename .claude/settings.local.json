@@ -22,7 +22,24 @@
       "WebFetch(domain:javaexpert.tistory.com)",
       "WebFetch(domain:spring.io)",
       "WebSearch",
-      "WebFetch(domain:kotlin.github.io)"
+      "WebFetch(domain:kotlin.github.io)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(java -version)",
+      "Bash(mvn -v)",
+      "Bash(gradle -v)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 -m pip install -q jinja2 click)",
+      "Bash(chmod +x /mnt/c/Users/wasd2/claude-workspace/ticketrush/scripts/start-service.sh)",
+      "Bash(curl -s http://localhost:9200/_cluster/health)",
+      "Read(//home/wasd222/jdk/**)",
+      "Read(//home/wasd222/opensearch-local/**)",
+      "Bash(python3 -c \"import PyPDF2; print\\('PyPDF2 ok'\\)\")",
+      "Bash(python3 -c \"import pypdf; print\\('pypdf ok'\\)\")",
+      "Bash(python3 -c \"import pdfplumber; print\\('pdfplumber ok'\\)\")",
+      "Bash(python3 *)"
     ]
   }
 }

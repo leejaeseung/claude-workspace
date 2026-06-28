@@ -1,0 +1,64 @@
+groups:
+  - name: ticketrush.slo
+    rules:
+      # P99 레이턴시 > 800ms (seat-api 기준)
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job="seat-api"}[5m])) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "seat-api P99 레이턴시 초과"
+          description: "seat-api P99가 {{ $value | humanizeDuration }} (기준: 800ms)"
+
+      # HTTP 에러율 > 1%
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) / rate(http_server_requests_seconds_count[5m]) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} HTTP 5xx 에러율 초과"
+          description: "{{ $labels.job }} 에러율 {{ $value | humanizePercentage }}"
+
+      # Kafka consumer lag > 5000
+      - alert: KafkaConsumerLagHigh
+        expr: kafka_consumer_group_lag > 5000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag 초과"
+          description: "토픽 {{ $labels.topic }} / 파티션 {{ $labels.partition }} lag={{ $value }}"
+
+      # Circuit Breaker OPEN
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit Breaker OPEN: {{ $labels.name }}"
+          description: "payment-api CircuitBreaker가 OPEN 상태입니다. PG 장애 가능성."
+
+      # JVM Heap 사용률 > 85%
+      - alert: JvmHeapUsageHigh
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} JVM Heap 사용률 초과"
+          description: "{{ $labels.job }} Heap {{ $value | humanizePercentage }} 사용 중"
+
+  - name: ticketrush.outbox
+    rules:
+      # Outbox 미발행 이벤트 > 100건 (relay 장애 가능성)
+      - alert: OutboxPublishingStalled
+        expr: outbox_pending_count > 100
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Outbox 발행 지연"
+          description: "미발행 이벤트 {{ $value }}건 — OutboxRelayScheduler 장애 가능성"

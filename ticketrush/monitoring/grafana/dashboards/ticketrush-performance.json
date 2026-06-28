@@ -1,0 +1,170 @@
+{
+  "title": "TicketRush — Performance Overview (W5)",
+  "uid": "ticketrush-perf-w5",
+  "schemaVersion": 38,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(http_server_requests_seconds_count, job)",
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Rate (RPS)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by(job) (rate(http_server_requests_seconds_count{job=~\"$service\"}[1m]))",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "lineWidth": 2 } }
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP P99 Latency (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by(job, le) (rate(http_server_requests_seconds_bucket{job=~\"$service\"}[1m]))) * 1000",
+          "legendFormat": "{{job}} p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 800 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Kafka Consumer Lag (토픽별)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by(topic, consumergroup) (kafka_consumergroup_lag)",
+          "legendFormat": "{{consumergroup}} / {{topic}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1000 },
+              { "color": "red", "value": 10000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "JVM Heap 사용률 (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by(job) (jvm_memory_used_bytes{area=\"heap\", job=~\"$service\"}) / sum by(job) (jvm_memory_max_bytes{area=\"heap\", job=~\"$service\"}) * 100",
+          "legendFormat": "{{job}} heap%"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "JVM GC Pause Time (ms, ZGC)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(jvm_gc_pause_seconds_sum{job=~\"$service\"}[1m]) / rate(jvm_gc_pause_seconds_count{job=~\"$service\"}[1m]) * 1000",
+          "legendFormat": "{{job}} avg GC pause"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(job, le) (rate(jvm_gc_pause_seconds_bucket{job=~\"$service\"}[1m]))) * 1000",
+          "legendFormat": "{{job}} p99 GC pause"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "좌석 잠금 성공/충돌 비율",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=\"seat-api\", status=\"200\", uri=~\".*/lock\"}[1m])",
+          "legendFormat": "잠금 성공 (200)"
+        },
+        {
+          "expr": "rate(http_server_requests_seconds_count{job=\"seat-api\", status=\"409\", uri=~\".*/lock\"}[1m])",
+          "legendFormat": "이미 잠김 (409)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "lineWidth": 2 } }
+      }
+    }
+  ]
+}

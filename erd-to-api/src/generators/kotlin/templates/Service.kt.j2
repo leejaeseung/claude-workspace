@@ -1,0 +1,41 @@
+package {{ pkg_name }}.service
+
+import {{ pkg_name }}.dto.{{ entity.name }}CreateDto
+import {{ pkg_name }}.dto.{{ entity.name }}ResponseDto
+import {{ pkg_name }}.dto.{{ entity.name }}UpdateDto
+import {{ pkg_name }}.entity.{{ entity.name }}
+import {{ pkg_name }}.repository.{{ entity.name }}Repository
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+@Service
+@Transactional(readOnly = true)
+class {{ entity.name }}Service(
+    private val repository: {{ entity.name }}Repository,
+) {
+    fun findAll(): List<{{ entity.name }}ResponseDto> =
+        repository.findAll().map { {{ entity.name }}ResponseDto.from(it) }
+
+    fun findById(id: Long): {{ entity.name }}ResponseDto =
+        repository.findById(id)
+            .map { {{ entity.name }}ResponseDto.from(it) }
+            .orElseThrow { RuntimeException("{{ entity.name }} not found: $id") }
+
+    @Transactional
+    fun create(dto: {{ entity.name }}CreateDto): {{ entity.name }}ResponseDto =
+        {{ entity.name }}ResponseDto.from(repository.save(dto.toEntity()))
+
+    @Transactional
+    fun update(id: Long, dto: {{ entity.name }}UpdateDto): {{ entity.name }}ResponseDto {
+        val entity = repository.findById(id)
+            .orElseThrow { RuntimeException("{{ entity.name }} not found: $id") }
+        dto.applyTo(entity)
+        return {{ entity.name }}ResponseDto.from(repository.save(entity))
+    }
+
+    @Transactional
+    fun delete(id: Long) {
+        if (!repository.existsById(id)) throw RuntimeException("{{ entity.name }} not found: $id")
+        repository.deleteById(id)
+    }
+}

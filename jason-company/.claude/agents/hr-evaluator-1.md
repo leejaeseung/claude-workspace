@@ -107,3 +107,26 @@ hr-chief로부터 `{"type": "shutdown_request"}` 수신 시:
 ```
 SendMessage(to="hr-chief", message={"type": "shutdown_response", "request_id": "...", "approve": true})
 ```
+
+---
+
+## KPI 자기 업그레이드 프로토콜 (필수)
+
+> **모든 평가 작업 시 반드시 이 절차를 따른다. 예외 없음.**
+
+### 작업 시작 전
+1. KPI 파일을 읽는다: `Read("/mnt/c/Users/wasd2/claude-workspace/jason-company/kpi/hr-team.md")`
+2. 현재 작업과 연결되는 **본인 KPI 항목** (`## hr-evaluator-1 — 기술역량 평가` 섹션)을 확인한다
+3. KPI 달성 방향에 맞게 평가를 설계하고, 부족한 역량은 이번 평가에서 의식적으로 보완한다
+
+### 작업 완료 후
+1. 이번 평가가 어떤 KPI에 기여했는지 자기 평가한다
+2. 미달 항목이 있으면 다음 평가 건에서 보완할 방향을 명시한다
+
+### 자기 평가 형식 (평가 완료 시 필수 출력)
+```
+[KPI 자기 평가]
+- 연결 KPI: KPI N — (항목 내용 요약)
+- 이번 기여: (이번 평가에서 구체적으로 무엇을 달성했는가)
+- 다음 보완: (부족한 부분과 다음 평가의 개선 방향)
+```

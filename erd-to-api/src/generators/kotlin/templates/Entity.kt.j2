@@ -1,0 +1,40 @@
+package {{ pkg_name }}.entity
+
+import jakarta.persistence.*
+{% for imp in java_imports %}
+import {{ imp }}
+{% endfor %}
+{% if relations %}
+import java.util.ArrayList
+{% endif %}
+
+@Entity
+@Table(name = "{{ entity.name_plural_snake }}")
+class {{ entity.name }}(
+    {% for f in entity.fields %}
+    {% if f.primary_key %}
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    var {{ f.name }}: {{ f.kotlin_type }}? = null,
+    {% elif f.foreign_key %}
+    @Column(name = "{{ f.name }}")
+    var {{ f.name }}: {{ f.kotlin_type }}? = null,
+    {% else %}
+    @Column({% if not f.nullable %}nullable = false{% endif %})
+    var {{ f.name }}: {{ f.kotlin_type }}? = null,
+    {% endif %}
+    {% endfor %}
+) {
+    {% for rel in relations %}
+    {% if rel.is_collection %}
+    @OneToMany(mappedBy = "{{ entity.name_lower }}", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
+    val {{ rel.to_entity | lower }}s: MutableList<{{ rel.to_entity }}> = ArrayList()
+
+    {% else %}
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "{{ rel.to_entity | lower }}_id")
+    var {{ rel.to_entity | lower }}: {{ rel.to_entity }}? = null
+
+    {% endif %}
+    {% endfor %}
+}

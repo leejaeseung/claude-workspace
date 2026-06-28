@@ -1,0 +1,25 @@
+package {{ pkg_name }}.dto;
+
+import {{ pkg_name }}.entity.{{ entity.name }};
+import lombok.*;
+{% for imp in java_imports %}
+import {{ imp }};
+{% endfor %}
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class {{ entity.name }}UpdateDto {
+
+    {% for f in entity.non_fk_non_pk_fields %}
+    private {{ f.java_type }} {{ f.name }};
+    {% endfor %}
+
+    public void applyTo({{ entity.name }} entity) {
+        {% for f in entity.non_fk_non_pk_fields %}
+        if (this.{{ f.name }} != null) entity.set{{ f.name[0].upper() + f.name[1:] }}(this.{{ f.name }});
+        {% endfor %}
+    }
+}

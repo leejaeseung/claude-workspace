@@ -1,0 +1,37 @@
+package {{ pkg_name }}.controller
+
+import {{ pkg_name }}.dto.{{ entity.name }}CreateDto
+import {{ pkg_name }}.dto.{{ entity.name }}ResponseDto
+import {{ pkg_name }}.dto.{{ entity.name }}UpdateDto
+import {{ pkg_name }}.service.{{ entity.name }}Service
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
+
+@RestController
+@RequestMapping("/{{ entity.name_plural_snake }}")
+class {{ entity.name }}Controller(
+    private val service: {{ entity.name }}Service,
+) {
+    @GetMapping
+    fun list(): ResponseEntity<List<{{ entity.name }}ResponseDto>> =
+        ResponseEntity.ok(service.findAll())
+
+    @GetMapping("/{id}")
+    fun get(@PathVariable id: Long): ResponseEntity<{{ entity.name }}ResponseDto> =
+        ResponseEntity.ok(service.findById(id))
+
+    @PostMapping
+    fun create(@RequestBody dto: {{ entity.name }}CreateDto): ResponseEntity<{{ entity.name }}ResponseDto> =
+        ResponseEntity.status(HttpStatus.CREATED).body(service.create(dto))
+
+    @PutMapping("/{id}")
+    fun update(@PathVariable id: Long, @RequestBody dto: {{ entity.name }}UpdateDto): ResponseEntity<{{ entity.name }}ResponseDto> =
+        ResponseEntity.ok(service.update(id, dto))
+
+    @DeleteMapping("/{id}")
+    fun delete(@PathVariable id: Long): ResponseEntity<Void> {
+        service.delete(id)
+        return ResponseEntity.noContent().build()
+    }
+}
