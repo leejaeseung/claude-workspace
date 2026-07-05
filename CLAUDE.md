@@ -132,6 +132,7 @@ Jason Company의 엄격한 채용 프로세스입니다. **hr-chief + 3명 평�
 | **feature-develop-developer-1** | **`.claude/agents/feature-develop-developer-1.md`** | **feature-develop 개발 전문가 미드레벨 (강민서)** | **✅ 활성 (2026-04-19 채용 확정)** |
 | **feature-develop-developer-2** | **`.claude/agents/feature-develop-developer-2.md`** | **feature-develop 개발 전문가 시니어 (하진우)** | **✅ 활성 (2026-04-21 채용 확정)** |
 | **agent-supervisor** | **`.claude/agents/agent-supervisor.md`** | **Agent Supervisor - 전 팀 업무 성과 관리/감독 (Sebastian Choi)** | **✅ 활성 (2026-04-25 조건부 채용 확정)** |
+| **ai-expert-ai-agent-architect** | **`.claude/agents/ai-expert-ai-agent-architect.md`** | **AI 에이전트 아키텍트 (박하준)** | **⚠️ 조건부 활성 (3개 조건 충족 필요)** |
 
 ### Global Agent 정책
 
