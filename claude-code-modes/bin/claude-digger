@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# claude-digger: CLAUDE_DIGGER 페르소나로 Claude Code 세션 진입
+export CLAUDE_MODE=digger
+exec claude "$@"

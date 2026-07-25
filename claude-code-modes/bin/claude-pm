@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# claude-pm: CLAUDE_PM 페르소나로 Claude Code 세션 진입
+export CLAUDE_MODE=pm
+exec claude "$@"

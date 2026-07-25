@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# claude-dev: CLAUDE_DEV 페르소나로 Claude Code 세션 진입
+export CLAUDE_MODE=dev
+exec claude "$@"
