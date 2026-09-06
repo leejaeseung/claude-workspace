@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>분산 시스템을 위한 유일 ID 생성기 설계</title>
+<style>
+  :root {
+    --bg: #f5f6fb;
+    --surface: #ffffff;
+    --surface-alt: #eef1f8;
+    --border: #dbe0ec;
+    --border-strong: #c3cade;
+    --ink: #161923;
+    --ink-soft: #454b5f;
+    --muted: #6b7288;
+    --accent: #0e7c86;
+    --accent-ink: #06474e;
+    --accent-soft: #dff1f2;
+    --gold: #b8792b;
+    --gold-soft: #f7ecd9;
+    --good: #1e8e5a;
+    --good-soft: #e3f4ea;
+    --bad: #b8483a;
+    --bad-soft: #fbe9e6;
+    --shadow: 0 1px 2px rgba(22, 25, 35, 0.04), 0 8px 24px -12px rgba(22, 25, 35, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216;
+      --surface: #161a21;
+      --surface-alt: #1b2029;
+      --border: #2a3140;
+      --border-strong: #394256;
+      --ink: #eef1f7;
+      --ink-soft: #c4cad9;
+      --muted: #8e96ab;
+      --accent: #57c8c9;
+      --accent-ink: #cdf3f2;
+      --accent-soft: #16302f;
+      --gold: #e3ac60;
+      --gold-soft: #3a2c17;
+      --good: #62c493;
+      --good-soft: #163524;
+      --bad: #e28a7c;
+      --bad-soft: #3a2320;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0f1216;
+    --surface: #161a21;
+    --surface-alt: #1b2029;
+    --border: #2a3140;
+    --border-strong: #394256;
+    --ink: #eef1f7;
+    --ink-soft: #c4cad9;
+    --muted: #8e96ab;
+    --accent: #57c8c9;
+    --accent-ink: #cdf3f2;
+    --accent-soft: #16302f;
+    --gold: #e3ac60;
+    --gold-soft: #3a2c17;
+    --good: #62c493;
+    --good-soft: #163524;
+    --bad: #e28a7c;
+    --bad-soft: #3a2320;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Pretendard Variable", "Pretendard", -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 6rem;
+  }
+
+  @media (max-width: 600px) {
+    .page { padding: 2.5rem 1.1rem 4rem; }
+  }
+
+  /* ---------- Header ---------- */
+  header.hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding-bottom: 2.4rem;
+    margin-bottom: 2.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .eyebrow {
+    font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  h1.title {
+    margin: 0;
+    font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+
+  .subtitle {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 1.08rem;
+    color: var(--ink-soft);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+  }
+
+  .tag {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ---------- Hook / Q&A callout ---------- */
+  .qa-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 1.4rem 1.5rem;
+    margin-bottom: 3rem;
+    box-shadow: var(--shadow);
+  }
+
+  .qa-line { display: flex; gap: 0.7rem; align-items: baseline; }
+  .qa-mark {
+    flex: none;
+    font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    font-weight: 700;
+    font-size: 0.85rem;
+    width: 1.6rem;
+  }
+  .qa-line.q .qa-mark { color: var(--muted); }
+  .qa-line.a .qa-mark { color: var(--accent); }
+  .qa-line.q p { color: var(--ink-soft); font-style: italic; }
+  .qa-line.a p { color: var(--ink); font-weight: 500; }
+  .qa-line p { margin: 0; }
+
+  /* ---------- Section scaffolding ---------- */
+  section.step {
+    margin-bottom: 3.6rem;
+  }
+
+  .step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1.3rem;
+  }
+
+  .step-num {
+    font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+  }
+
+  h2.step-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .step-intro {
+    color: var(--ink-soft);
+    margin: 0 0 1.4rem;
+    max-width: 66ch;
+  }
+
+  /* ---------- Q&A dialogue list ---------- */
+  .dialogue {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.3rem 1.5rem;
+  }
+
+  .dialogue .pair { display: flex; flex-direction: column; gap: 0.35rem; }
+  .dialogue .pair + .pair { padding-top: 1.05rem; border-top: 1px dashed var(--border); }
+  .dialogue .q { display: flex; gap: 0.6rem; color: var(--muted); font-size: 0.97rem; }
+  .dialogue .a { display: flex; gap: 0.6rem; color: var(--ink); font-weight: 500; }
+  .dialogue .q .role, .dialogue .a .role {
+    flex: none; font-weight: 700; font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    font-size: 0.82rem;
+  }
+  .dialogue .q .role { color: var(--muted); }
+  .dialogue .a .role { color: var(--accent); }
+
+  /* ---------- Requirements checklist ---------- */
+  .checklist {
+    margin-top: 1.4rem;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+  }
+  .checklist h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .checklist ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+  .checklist li { display: flex; gap: 0.6rem; align-items: flex-start; color: var(--ink); font-weight: 500; }
+  .checklist li::before {
+    content: "✓";
+    flex: none;
+    color: var(--accent);
+    font-weight: 800;
+  }
+
+  /* ---------- Approach cards ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.2rem;
+  }
+
+  .card {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.4rem 1.5rem 1.6rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .card.featured {
+    grid-column: 1 / -1;
+    border-color: var(--gold);
+    border-width: 1.5px;
+  }
+
+  .ribbon {
+    position: absolute;
+    top: -0.7rem;
+    right: 1.1rem;
+    background: var(--gold);
+    color: #1a1305;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+  }
+
+  .card h3 {
+    margin: 0;
+    font-size: 1.18rem;
+    font-weight: 800;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .card h3 .en {
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+  }
+
+  .card p.desc { margin: 0; color: var(--ink-soft); }
+
+  .diagram-wrap {
+    overflow-x: auto;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem;
+  }
+  .diagram-wrap svg { display: block; margin: 0 auto; min-width: 460px; width: 100%; height: auto; }
+
+  .svg-box { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.5; }
+  .svg-box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .svg-label { fill: var(--ink); font-size: 13px; font-weight: 600; }
+  .svg-caption { fill: var(--muted); font-size: 11px; font-weight: 600; }
+  .svg-line { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+  .svg-mono { fill: var(--accent-ink); font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace; font-size: 12px; font-weight: 600; }
+
+  .example-block {
+    font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    font-size: 0.86rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+
+  .pullquote {
+    margin: 0;
+    padding: 0.9rem 1.1rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: 0 8px 8px 0;
+  }
+
+  .version-note {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.95rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .version-note h4 {
+    margin: 0;
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    color: var(--accent-ink);
+    font-weight: 800;
+  }
+  .version-note p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; }
+  .version-note ul { margin: 0; padding-left: 1.1rem; color: var(--ink-soft); display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.92rem; }
+  .version-note li b { color: var(--ink); }
+
+  .pros-cons { display: flex; flex-direction: column; gap: 0.7rem; }
+  .pc-block h4 {
+    margin: 0 0 0.4rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+  }
+  .pc-block.good h4 { color: var(--good); background: var(--good-soft); }
+  .pc-block.bad h4 { color: var(--bad); background: var(--bad-soft); }
+  .pc-block ul { margin: 0; padding-left: 1.1rem; color: var(--ink-soft); display: flex; flex-direction: column; gap: 0.35rem; }
+  .pc-block li::marker { color: var(--muted); }
+  .pc-block li b { color: var(--ink); }
+
+  .field-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.65rem; }
+  .field-list li {
+    display: grid;
+    grid-template-columns: 9.5rem 1fr;
+    gap: 0.9rem;
+    align-items: baseline;
+    padding-top: 0.65rem;
+    border-top: 1px dashed var(--border);
+  }
+  .field-list li:first-child { border-top: none; padding-top: 0; }
+  .field-name {
+    font-weight: 700;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.83rem;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.4;
+  }
+  .field-list p { margin: 0; color: var(--ink-soft); }
+
+  /* ---------- Detail notes ---------- */
+  .note-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1.1rem; }
+  .note-list > li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+  }
+  .note-list p { margin: 0; color: var(--ink-soft); }
+  .note-list p strong { color: var(--ink); }
+
+  .inline-qa {
+    margin-top: 0.7rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--surface-alt);
+    border-radius: 8px;
+    font-size: 0.92rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .inline-qa .q { color: var(--muted); }
+  .inline-qa .a { color: var(--ink); font-weight: 500; }
+  .inline-qa .role { font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace; font-weight: 700; margin-right: 0.4rem; }
+
+  /* ---------- Wrap-up grid ---------- */
+  .wrapup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1rem;
+  }
+  .wrapup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .wrapup-card h4 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--ink); }
+  .wrapup-card p { margin: 0; color: var(--ink-soft); font-size: 0.94rem; }
+  .wrapup-card .ex {
+    font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    font-size: 0.82rem;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+  }
+
+  /* ---------- Comparison table ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table.compare {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 620px;
+    font-size: 0.92rem;
+    background: var(--surface);
+  }
+  table.compare th, table.compare td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  table.compare thead th {
+    background: var(--surface-alt);
+    color: var(--muted);
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  table.compare tbody tr:last-child td { border-bottom: none; }
+  table.compare tbody th { font-weight: 700; color: var(--ink); }
+  table.compare td.pos { color: var(--good); font-weight: 600; }
+  table.compare td.neg { color: var(--bad); font-weight: 600; }
+  table.compare tbody tr.featured { background: var(--gold-soft); }
+  .table-note { margin: 0.6rem 0.1rem 0; font-size: 0.8rem; color: var(--muted); }
+
+  footer.page-footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <div class="eyebrow">가상 면접 사례로 배우는 대규모 시스템 설계 기초 · Chapter 07</div>
+    <h1 class="title">분산 시스템을 위한 유일 ID 생성기 설계</h1>
+    <p class="subtitle">여러 대의 서버가 동시에 채번해도 서로 겹치지 않고, 시간 순으로도 정렬 가능한 ID를 만드는 방법을 설계한다.</p>
+    <div class="tags">
+      <span class="tag">Twitter Snowflake</span>
+      <span class="tag">UUID</span>
+      <span class="tag">티켓 서버</span>
+      <span class="tag">다중 마스터 복제</span>
+      <span class="tag">64-bit ID</span>
+    </div>
+  </header>
+
+  <div class="qa-hero">
+    <div class="qa-line q">
+      <span class="qa-mark">Q</span>
+      <p>auto_increment 속성이 설정된 관계형 데이터베이스의 기본 키를 쓰면 되지 않을까?</p>
+    </div>
+    <div class="qa-line a">
+      <span class="qa-mark">A</span>
+      <p>안 된다. 데이터베이스 서버 한 대로는 트래픽을 감당할 수 없고, 여러 데이터베이스를 쓰면 서버 간 delay를 낮추기가 매우 어렵다.</p>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">STEP 01</span>
+      <h2 class="step-title">문제 이해 및 설계 범위 확정</h2>
+    </div>
+    <p class="step-intro">면접관과의 질의응답을 통해 모호함을 없애고 설계 방향을 정한다.</p>
+
+    <div class="dialogue">
+      <div class="pair">
+        <div class="q"><span class="role">Q</span><span>ID의 특성은?</span></div>
+        <div class="a"><span class="role">A</span><span>유일하고 정렬 가능해야 한다.</span></div>
+      </div>
+      <div class="pair">
+        <div class="q"><span class="role">Q</span><span>새로운 레코드의 ID는 항상 1만큼 큰 값이어야 하나?</span></div>
+        <div class="a"><span class="role">A</span><span>언제나 1씩 증가한다고 할 수는 없지만, 항상 증가하는 방향이어야 한다.</span></div>
+      </div>
+      <div class="pair">
+        <div class="q"><span class="role">Q</span><span>ID는 숫자로만 구성되나?</span></div>
+        <div class="a"><span class="role">A</span><span>그렇다.</span></div>
+      </div>
+      <div class="pair">
+        <div class="q"><span class="role">Q</span><span>시스템의 규모는?</span></div>
+        <div class="a"><span class="role">A</span><span>초당 10,000개의 ID를 생성할 수 있어야 한다.</span></div>
+      </div>
+    </div>
+
+    <div class="checklist">
+      <h3>요구사항 정리</h3>
+      <ul>
+        <li>ID는 유일해야 한다</li>
+        <li>ID는 숫자로만 구성된다</li>
+        <li>ID는 64비트로 표현될 수 있는 값이어야 한다</li>
+        <li>ID는 발급 날짜에 따라 정렬 가능해야 한다</li>
+        <li>초당 10,000개의 ID를 만들 수 있어야 한다</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">STEP 02</span>
+      <h2 class="step-title">개략적 설계안 비교</h2>
+    </div>
+    <p class="step-intro">분산 시스템에서 유일성이 보장되는 ID를 만드는 방법은 여러 가지다. 대표적인 네 가지 접근법을 비교한다.</p>
+
+    <div class="cards">
+
+      <!-- Card: Multi-master replication -->
+      <article class="card">
+        <h3>다중 마스터 복제 <span class="en">Multi-master Replication</span></h3>
+        <p class="desc">데이터베이스의 <code>auto_increment</code>를 이용한다. 각 서버는 <b>데이터베이스 서버 개수(N)</b>만큼 건너뛰며 ID를 증가시켜, 서버 간 채번이 겹치지 않게 한다.</p>
+        <div class="diagram-wrap">
+          <svg viewBox="0 0 640 220" role="img" aria-label="두 대의 MySQL 서버가 각각 홀수, 짝수 ID를 채번하여 웹 서버로 전달하는 구조">
+            <defs>
+              <marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" class="svg-line" style="fill:var(--muted);stroke:none;" />
+              </marker>
+            </defs>
+            <rect x="20" y="28" width="150" height="58" rx="12" class="svg-box"/>
+            <text x="95" y="63" text-anchor="middle" class="svg-label">MySQL A</text>
+            <rect x="20" y="132" width="150" height="58" rx="12" class="svg-box"/>
+            <text x="95" y="167" text-anchor="middle" class="svg-label">MySQL B</text>
+
+            <rect x="460" y="55" width="160" height="105" rx="14" class="svg-box-accent"/>
+            <text x="540" y="112" text-anchor="middle" class="svg-label">웹 서버</text>
+
+            <path d="M170,57 C 320,57 340,85 460,95" class="svg-line" marker-end="url(#arrow1)"/>
+            <text x="300" y="48" text-anchor="middle" class="svg-mono">1, 3, 5, 7 …</text>
+
+            <path d="M170,161 C 320,161 340,130 460,120" class="svg-line" marker-end="url(#arrow1)"/>
+            <text x="300" y="182" text-anchor="middle" class="svg-mono">2, 4, 6, 8 …</text>
+          </svg>
+        </div>
+        <div class="example-block">1번 서버 채번 : 1, 3, 5, 7 …<br>2번 서버 채번 : 2, 4, 6, 8 …</div>
+        <div class="pros-cons">
+          <div class="pc-block bad">
+            <h4>단점</h4>
+            <ul>
+              <li><b>시간순 정렬 불가</b> — ID 순서가 채번 순서를 보장하지 않는다. (1번 서버가 1,3,5를 채번한 뒤 2번 서버가 2를 채번하면, 실제 생성 순서는 1 → 3 → 5 → 2가 된다.)</li>
+              <li>여러 데이터센터에 걸쳐 규모를 늘리기 어렵다.</li>
+              <li>서버 추가·삭제 시 정상 동작을 보장하기 어렵다. (증가폭 N 값 변경을 각 DB에 동기화해야 함)</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card: UUID -->
+      <article class="card">
+        <h3>UUID</h3>
+        <p class="desc">128비트의 랜덤한 값을 사용한다. 충돌 가능성이 매우 낮다.</p>
+        <p class="pullquote">"중복 UUID가 1개 생길 확률을 50%로 끌어올리려면, 초당 10억 개의 UUID를 100년 동안 계속 만들어야 한다."</p>
+        <div class="pros-cons">
+          <div class="pc-block good">
+            <h4>장점</h4>
+            <ul>
+              <li>서버 사이의 조율 및 동기화가 필요 없다.</li>
+              <li>각 서버가 독립적으로 채번하므로 규모 확장이 쉽다.</li>
+            </ul>
+          </div>
+          <div class="pc-block bad">
+            <h4>단점</h4>
+            <ul>
+              <li>ID가 128비트로 길다.</li>
+              <li>시간순 정렬이 불가능하다. (v4 기준 — v6·v7은 예외, 아래 참고)</li>
+              <li>ID가 숫자로만 구성되지 않는다.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="version-note">
+          <h4>UUID v6 · v7 — 정렬 가능한 UUID</h4>
+          <p>2024년 RFC 9562로 표준화된 버전으로, 기존 UUID(v4)의 "시간순 정렬 불가"라는 단점을 보완한다.</p>
+          <ul>
+            <li><b>v6</b> — UUID v1의 타임스탬프 비트 순서를 재배열해 상위 비트부터 시간 값이 오도록 만든 버전. 그레고리력 기준 100나노초 단위 60비트 타임스탬프를 그대로 사용해 사전식(lexicographic) 정렬이 가능하다.</li>
+            <li><b>v7</b> — Unix epoch 밀리초 단위의 48비트 타임스탬프를 앞에 두고 나머지 비트를 무작위 값으로 채운 버전. 구조가 더 단순하고 사람이 읽기도 쉬워, RFC 9562는 v1·v6 대신 v7 사용을 권장한다.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Card: Ticket server -->
+      <article class="card">
+        <h3>티켓 서버 <span class="en">Ticket Server</span></h3>
+        <p class="desc"><code>auto_increment</code>를 사용하는 데이터베이스 서버(티켓 서버) 한 대를 중앙 집중형으로 둔다.</p>
+        <div class="diagram-wrap">
+          <svg viewBox="0 0 640 220" role="img" aria-label="네 대의 웹 서버가 하나의 티켓 서버로부터 ID를 발급받는 구조">
+            <defs>
+              <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted);stroke:none;" />
+              </marker>
+            </defs>
+            <g>
+              <rect x="20"  y="20" width="130" height="54" rx="10" class="svg-box"/>
+              <rect x="170" y="20" width="130" height="54" rx="10" class="svg-box"/>
+              <rect x="340" y="20" width="130" height="54" rx="10" class="svg-box"/>
+              <rect x="490" y="20" width="130" height="54" rx="10" class="svg-box"/>
+              <text x="85"  y="52" text-anchor="middle" class="svg-label">웹 서버</text>
+              <text x="235" y="52" text-anchor="middle" class="svg-label">웹 서버</text>
+              <text x="405" y="52" text-anchor="middle" class="svg-label">웹 서버</text>
+              <text x="555" y="52" text-anchor="middle" class="svg-label">웹 서버</text>
+            </g>
+            <rect x="250" y="150" width="140" height="56" rx="12" class="svg-box-accent"/>
+            <text x="320" y="183" text-anchor="middle" class="svg-label">티켓 서버</text>
+
+            <path d="M85,74 L 300,150" class="svg-line" marker-end="url(#arrow2)"/>
+            <path d="M235,74 L 315,150" class="svg-line" marker-end="url(#arrow2)"/>
+            <path d="M405,74 L 325,150" class="svg-line" marker-end="url(#arrow2)"/>
+            <path d="M555,74 L 340,150" class="svg-line" marker-end="url(#arrow2)"/>
+          </svg>
+        </div>
+        <div class="pros-cons">
+          <div class="pc-block good">
+            <h4>장점</h4>
+            <ul>
+              <li>유일성이 보장되고 숫자로만 구성된 ID를 쉽게 만들 수 있다.</li>
+              <li>구현이 쉽다.</li>
+            </ul>
+          </div>
+          <div class="pc-block bad">
+            <h4>단점</h4>
+            <ul>
+              <li>티켓 서버가 병목 지점이 되어 성능이 저하된다.</li>
+              <li>티켓 서버가 <b>단일 장애점(SPOF)</b>이 된다 — 장애 발생 시 모든 웹 서버가 영향을 받는다.</li>
+              <li>고가용성을 위해 여러 티켓 서버를 두면, 데이터 동기화라는 새로운 문제가 생긴다.</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card: Snowflake (featured) -->
+      <article class="card featured">
+        <span class="ribbon">채택된 설계</span>
+        <h3>트위터 스노우플레이크 <span class="en">Twitter Snowflake</span></h3>
+        <p class="desc">64비트 ID를 <b>사인 · 타임스탬프 · 데이터센터 ID · 서버 ID · 일련번호</b> 다섯 개의 절(section)로 나누어 구성한다.</p>
+
+        <div class="diagram-wrap">
+          <svg viewBox="0 0 760 210" role="img" aria-label="64비트를 사인 1비트, 타임스탬프 41비트, 데이터센터 ID 5비트, 서버 ID 5비트, 일련번호 12비트로 나눈 구조">
+            <!-- bit-count captions -->
+            <text x="22"  y="56" text-anchor="middle" class="svg-caption">1비트</text>
+            <text x="199" y="56" text-anchor="middle" class="svg-caption">41비트</text>
+            <text x="419" y="56" text-anchor="middle" class="svg-caption">5비트</text>
+            <text x="549" y="56" text-anchor="middle" class="svg-caption">5비트</text>
+            <text x="687" y="56" text-anchor="middle" class="svg-caption">12비트</text>
+
+            <!-- segments: sign(44) timestamp(310) datacenter(130) server(130) sequence(146) -->
+            <rect x="0"   y="70" width="44"  height="66" class="svg-box-accent"/>
+            <rect x="44"  y="70" width="310" height="66" class="svg-box"/>
+            <rect x="354" y="70" width="130" height="66" class="svg-box"/>
+            <rect x="484" y="70" width="130" height="66" class="svg-box"/>
+            <rect x="614" y="70" width="146" height="66" class="svg-box"/>
+
+            <text x="22"  y="108" text-anchor="middle" class="svg-mono">0</text>
+            <text x="199" y="108" text-anchor="middle" class="svg-label">타임스탬프</text>
+            <text x="419" y="98"  text-anchor="middle" class="svg-label">데이터센터</text>
+            <text x="419" y="122" text-anchor="middle" class="svg-label">ID</text>
+            <text x="549" y="108" text-anchor="middle" class="svg-label">서버 ID</text>
+            <text x="687" y="108" text-anchor="middle" class="svg-label">일련번호</text>
+
+            <text x="22"  y="160" text-anchor="middle" class="svg-caption">사인</text>
+          </svg>
+        </div>
+
+        <ul class="field-list">
+          <li>
+            <span class="field-name">사인 · 1bit</span>
+            <p>지금은 쓰임새가 없지만 나중을 위해 유보해 둔다. 양수와 음수를 구별하는 데 사용할 수 있을 것이다.</p>
+          </li>
+          <li>
+            <span class="field-name">타임스탬프 · 41bit</span>
+            <p>기원 시각(epoch) 이후 경과한 밀리초. 트위터 스노우플레이크가 사용한 기원 시각 <b>1288834974657</b>(2010-11-04 01:42:54 UTC)을 그대로 사용한다.</p>
+          </li>
+          <li>
+            <span class="field-name">데이터센터 ID · 5bit</span>
+            <p>최대 2⁵ = <b>32개</b> 데이터센터를 지원한다.</p>
+          </li>
+          <li>
+            <span class="field-name">서버 ID · 5bit</span>
+            <p>데이터센터당 최대 <b>32개</b> 서버를 지원한다.</p>
+          </li>
+          <li>
+            <span class="field-name">일련번호 · 12bit</span>
+            <p>같은 서버에서 ID를 생성할 때마다 1씩 증가한다. 1밀리초가 지날 때마다 0으로 초기화된다.</p>
+          </li>
+        </ul>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">STEP 03</span>
+      <h2 class="step-title">상세 설계 — 스노우플레이크 심화</h2>
+    </div>
+
+    <ul class="note-list">
+      <li>
+        <p><strong>데이터센터 ID · 서버 ID는 고정값이다.</strong> 시스템 시작 시점에 정해지며 운영 중에는 바뀌지 않는다. 변경하면 ID 충돌이 발생할 수 있으므로 신중해야 한다.</p>
+      </li>
+      <li>
+        <p><strong>41비트 타임스탬프 덕분에 시간순 정렬이 가능하다.</strong> 시간이 흐를수록 값이 커지기 때문이다.</p>
+        <div class="inline-qa">
+          <div class="q"><span class="role">Q</span>타임스탬프가 동일하고 데이터센터·서버 ID가 다르면 정렬이 꼬일 수 있지 않을까?</div>
+          <div class="a"><span class="role">A</span>밀리초까지 동일하다면, 그 안에서 어떤 순서로 정렬되든 크게 상관없을 수 있다.</div>
+        </div>
+      </li>
+      <li>
+        <p><strong>타임스탬프의 수명은 69년이다.</strong> 41비트 타임스탬프의 최댓값에 해당하는 기간이 지나면 다른 값 체계로 마이그레이션해야 한다.</p>
+      </li>
+      <li>
+        <p><strong>일련번호는 12비트, 즉 4096개의 값을 갖는다.</strong> 어떤 서버가 같은 밀리초 동안 하나 이상의 ID를 만들어 낸 경우에만 0보다 큰 값을 갖는다.</p>
+      </li>
+    </ul>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">STEP 04</span>
+      <h2 class="step-title">마무리 — 더 고려할 점</h2>
+    </div>
+
+    <div class="wrapup-grid">
+      <div class="wrapup-card">
+        <h4>시계 동기화</h4>
+        <p>각 서버의 시계가 모두 같다고 보장할 수 없다. 즉, 동일한 시각이라도 A 서버와 B 서버가 기록하는 타임스탬프가 다를 수 있다.</p>
+      </div>
+      <div class="wrapup-card">
+        <h4>절(section) 길이 최적화</h4>
+        <p>애플리케이션 특성에 따라 64비트를 다르게 쪼갤 수 있다.</p>
+        <div class="ex">동시성 낮음 + 수명 김 → 일련번호↓, 타임스탬프↑</div>
+      </div>
+      <div class="wrapup-card">
+        <h4>고가용성</h4>
+        <p>ID 생성기는 아주 높은 가용성을 보장해야 한다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison summary -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">SUMMARY</span>
+      <h2 class="step-title">네 가지 접근법, 한눈에 비교</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th scope="col">방식</th>
+            <th scope="col">유일성 확보 방식</th>
+            <th scope="col">시간순 정렬</th>
+            <th scope="col">ID 형식</th>
+            <th scope="col">확장성</th>
+            <th scope="col">SPOF</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">다중 마스터 복제</th>
+            <td>DB별 auto_increment 오프셋</td>
+            <td class="neg">불가</td>
+            <td>숫자</td>
+            <td class="neg">어려움</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <th scope="row">UUID</th>
+            <td>128비트 무작위 값</td>
+            <td class="neg">불가 (v6·v7 제외)</td>
+            <td>숫자+문자, 128비트</td>
+            <td class="pos">쉬움</td>
+            <td class="pos">없음</td>
+          </tr>
+          <tr>
+            <th scope="row">티켓 서버</th>
+            <td>중앙 DB auto_increment</td>
+            <td class="pos">가능</td>
+            <td>숫자</td>
+            <td class="neg">어려움 (병목)</td>
+            <td class="neg">있음</td>
+          </tr>
+          <tr class="featured">
+            <th scope="row">스노우플레이크</th>
+            <td>타임스탬프 + 식별자 + 일련번호</td>
+            <td class="pos">가능</td>
+            <td>숫자, 64비트</td>
+            <td class="pos">좋음</td>
+            <td class="pos">없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">본문에서 명시적으로 언급된 특성을 기준으로 정리함.</p>
+  </section>
+
+  <footer class="page-footer">
+    <span>가상 면접 사례로 배우는 대규모 시스템 설계 기초 · 7장</span>
+    <span>스터디 발표 자료</span>
+  </footer>
+
+</div>
+</body>
+</html>
