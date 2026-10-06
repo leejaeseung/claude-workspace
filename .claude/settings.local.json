@@ -43,7 +43,12 @@
       "Bash(git ls-files *)",
       "Bash(git rm *)",
       "Bash(wait)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(nohup npm run dev)",
+      "Bash(disown)",
+      "Bash(kill 6331 6332 6400 6402 6429)",
+      "Read(//home/wasd222/.claude/**)",
+      "Read(//home/wasd222/**)"
     ]
   }
 }
