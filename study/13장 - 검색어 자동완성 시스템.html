@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>검색어 자동완성 시스템</title>
+<style>
+  :root {
+    --bg: #f5f6fb;
+    --surface: #ffffff;
+    --surface-alt: #eef1f8;
+    --border: #dbe0ec;
+    --border-strong: #c3cade;
+    --ink: #161923;
+    --ink-soft: #454b5f;
+    --muted: #6b7288;
+    --accent: #0e7c86;
+    --accent-ink: #06474e;
+    --accent-soft: #dff1f2;
+    --gold: #b8792b;
+    --gold-soft: #f7ecd9;
+    --good: #1e8e5a;
+    --good-soft: #e3f4ea;
+    --bad: #b8483a;
+    --bad-soft: #fbe9e6;
+    --shadow: 0 1px 2px rgba(22, 25, 35, 0.04), 0 8px 24px -12px rgba(22, 25, 35, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f1216; --surface: #161a21; --surface-alt: #1b2029; --border: #2a3140; --border-strong: #394256;
+      --ink: #eef1f7; --ink-soft: #c4cad9; --muted: #8e96ab;
+      --accent: #57c8c9; --accent-ink: #cdf3f2; --accent-soft: #16302f;
+      --gold: #e3ac60; --gold-soft: #3a2c17; --good: #62c493; --good-soft: #163524; --bad: #e28a7c; --bad-soft: #3a2320;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1216; --surface: #161a21; --surface-alt: #1b2029; --border: #2a3140; --border-strong: #394256;
+    --ink: #eef1f7; --ink-soft: #c4cad9; --muted: #8e96ab;
+    --accent: #57c8c9; --accent-ink: #cdf3f2; --accent-soft: #16302f;
+    --gold: #e3ac60; --gold-soft: #3a2c17; --good: #62c493; --good-soft: #163524; --bad: #e28a7c; --bad-soft: #3a2320;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Pretendard Variable", "Pretendard", -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace; }
+  code { font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Consolas, monospace; font-size: 0.9em; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.35rem; }
+  .page { max-width: 1020px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+  @media (max-width: 600px) { .page { padding: 2.5rem 1.1rem 4rem; } }
+
+  /* hero */
+  header.hero { display: flex; flex-direction: column; gap: 0.9rem; padding-bottom: 2.4rem; margin-bottom: 2.6rem; border-bottom: 1px solid var(--border); }
+  .eyebrow { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 0.78rem; letter-spacing: 0.11em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1.title { margin: 0; font-size: clamp(1.9rem, 4.2vw, 2.6rem); font-weight: 800; letter-spacing: -0.015em; text-wrap: balance; }
+  .subtitle { margin: 0; max-width: 62ch; font-size: 1.08rem; color: var(--ink-soft); }
+  .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem; }
+  .tag { font-size: 0.78rem; padding: 0.3rem 0.7rem; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); color: var(--muted); font-weight: 600; }
+
+  /* search box hook */
+  .searchdemo { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1.4rem 1.5rem; margin-bottom: 3rem; box-shadow: var(--shadow); }
+  .fake-search { display: flex; align-items: center; gap: 0.6rem; border: 1.5px solid var(--border-strong); border-radius: 999px; padding: 0.55rem 1rem; background: var(--bg); max-width: 420px; font-size: 1.05rem; }
+  .fake-search .caret { width: 2px; height: 1.2em; background: var(--accent); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .suggest { max-width: 420px; margin: 0.4rem 0 0; padding: 0.4rem 0; list-style: none; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); min-height: 2.4rem; }
+  .suggest li { padding: 0.2rem 1rem; display: flex; justify-content: space-between; }
+  .suggest li b { color: var(--accent); }
+  .suggest li span { color: var(--muted); font-size: 0.85rem; }
+  .keystrokes { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; align-items: center; }
+  .ks { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-alt); color: var(--muted); transition: all .2s; }
+  .ks.on { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+  .note { color: var(--muted); font-size: 0.9rem; }
+
+  /* sections */
+  section.step { margin-bottom: 4rem; scroll-margin-top: 1.5rem; }
+  .step-head { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 1.3rem; }
+  .step-num { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 0.15rem 0.5rem; white-space: nowrap; }
+  h2.step-title { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
+  h3 { margin: 2rem 0 0.8rem; font-size: 1.12rem; font-weight: 700; }
+  .step-intro { color: var(--ink-soft); margin: 0 0 1.4rem; max-width: 66ch; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.4rem; box-shadow: var(--shadow); }
+  .grid { display: grid; gap: 0.9rem; }
+  .g5 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .req .ico { font-size: 1.5rem; }
+  .req h4 { margin: 0.3rem 0 0.2rem; font-size: 1rem; }
+  .req p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; }
+
+  .callout { border-radius: 10px; padding: 1rem 1.3rem; margin-top: 1.2rem; border: 1px solid var(--border); }
+  .callout.warn { background: var(--bad-soft); border-color: transparent; }
+  .callout.tip { background: var(--good-soft); border-color: transparent; }
+  .callout.info { background: var(--accent-soft); border-color: transparent; }
+  .callout strong { display: block; margin-bottom: 0.2rem; }
+  .callout p { margin: 0; }
+
+  /* calc strip */
+  .calc { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.7rem; font-size: 1.05rem; }
+  .calc .num { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 0.35rem 0.75rem; text-align: center; line-height: 1.25; }
+  .calc .num small { display: block; color: var(--muted); font-size: 0.72rem; }
+  .calc .op { color: var(--muted); font-weight: 700; }
+  .calc .res { background: var(--accent); color: var(--surface); border-color: var(--accent); font-weight: 800; }
+
+  /* tables */
+  .tbl-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { border-bottom: 1px solid var(--border); padding: 0.45rem 0.7rem; text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+  td.mono, th.mono { font-family: ui-monospace, Consolas, monospace; }
+  tr.flash td { animation: flash 1.4s ease; }
+  tr.changed td { background: var(--gold-soft); }
+  @keyframes flash { 0% { background: var(--gold); } 100% { background: var(--gold-soft); } }
+
+  /* flow diagram */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.4rem; }
+  .flow .box { flex: 1 1 120px; background: var(--surface); border: 1.5px solid var(--border-strong); border-radius: 10px; padding: 0.7rem 0.8rem; text-align: center; font-size: 0.9rem; display: flex; flex-direction: column; justify-content: center; }
+  .flow .box b { display: block; font-size: 0.95rem; }
+  .flow .box small { color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+  .flow .box.hl { border-color: var(--accent); background: var(--accent-soft); }
+  .flow .box.gold { border-color: var(--gold); background: var(--gold-soft); }
+  .flow .arrow { align-self: center; color: var(--muted); font-weight: 700; flex: none; }
+  @media (max-width: 640px) {
+    .flow { flex-direction: column; }
+    .flow .arrow { transform: rotate(90deg); }
+  }
+
+  /* trie demo */
+  .demo { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; }
+  .demo.stack { grid-template-columns: 1fr; }
+  .steps.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  #trie2 { max-width: 460px; margin: 0 auto; }
+  @media (max-width: 760px) { .demo { grid-template-columns: 1fr; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.8rem; }
+  .controls input[type=text] { font: inherit; font-family: ui-monospace, Consolas, monospace; padding: 0.35rem 0.7rem; border: 1.5px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--ink); width: 8.5rem; }
+  button.chip { font: inherit; font-size: 0.85rem; font-family: ui-monospace, Consolas, monospace; padding: 0.3rem 0.65rem; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface-alt); color: var(--ink-soft); cursor: pointer; }
+  button.chip:hover, button.chip.on { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+  button.act { font: inherit; font-size: 0.9rem; font-weight: 700; padding: 0.45rem 0.9rem; border-radius: 8px; border: none; background: var(--accent); color: var(--surface); cursor: pointer; }
+  button.act.ghost { background: var(--surface-alt); color: var(--ink); border: 1px solid var(--border-strong); }
+  label.toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.88rem; color: var(--ink-soft); cursor: pointer; margin-left: auto; }
+  .svgbox { overflow-x: auto; }
+  svg.trie { width: 100%; min-width: 420px; height: auto; display: block; }
+  svg.trie .edge { stroke: var(--border-strong); stroke-width: 1.5; fill: none; transition: stroke .2s; }
+  svg.trie .edge.path { stroke: var(--accent); stroke-width: 3; }
+  svg.trie .edge.sub { stroke: var(--gold); stroke-width: 2; }
+  svg.trie rect.node { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.5; transition: all .2s; }
+  svg.trie rect.node.word { stroke: var(--ink-soft); }
+  svg.trie rect.node.path { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2.5; }
+  svg.trie rect.node.sub { fill: var(--gold-soft); stroke: var(--gold); }
+  svg.trie rect.node.changed { fill: var(--gold-soft); stroke: var(--gold); stroke-width: 2.5; }
+  svg.trie text { font-family: ui-monospace, Consolas, monospace; font-size: 13px; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+  svg.trie text.freq { font-size: 12px; fill: var(--accent); font-weight: 700; }
+  svg.trie text.cache { font-size: 11.5px; fill: var(--gold); text-anchor: start; font-weight: 600; }
+  svg.trie .cache-g { opacity: 0; transition: opacity .25s; }
+  svg.trie.show-cache .cache-g { opacity: 1; }
+  svg.trie rect.cachebg { fill: var(--surface); stroke: var(--gold); stroke-dasharray: 3 2; }
+
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+  .steps li { border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; background: var(--surface); font-size: 0.92rem; }
+  .steps li .lbl { font-weight: 700; display: flex; justify-content: space-between; gap: 0.5rem; }
+  .steps li .cx { font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; color: var(--muted); }
+  .steps li .val { color: var(--ink-soft); margin-top: 0.2rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; word-break: break-all; }
+  .steps li.s1 { border-left: 4px solid var(--accent); }
+  .steps li.s2 { border-left: 4px solid var(--gold); }
+  .steps li.s3 { border-left: 4px solid var(--good); }
+  .steps li.skip { opacity: 0.45; text-decoration: line-through; }
+  .result { margin-top: 0.8rem; padding: 0.7rem 0.9rem; border-radius: 8px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; font-family: ui-monospace, Consolas, monospace; }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 0.3rem; vertical-align: -1px; border: 2px solid; }
+
+  /* bars */
+  .bars { display: flex; align-items: flex-end; gap: 2px; height: 180px; padding-top: 1rem; border-bottom: 1px solid var(--border-strong); position: relative; }
+  .bar { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; position: relative; min-width: 6px; opacity: 0.75; cursor: default; }
+  .bar.hot { background: var(--gold); opacity: 1; }
+  .bar:hover { opacity: 1; outline: 2px solid var(--ink-soft); }
+  .bar .tip { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); font-size: 0.75rem; padding: 0.15rem 0.45rem; border-radius: 4px; white-space: nowrap; z-index: 2; }
+  .bar:hover .tip { display: block; }
+  .bar-labels { display: flex; gap: 2px; }
+  .bar-labels span { flex: 1; text-align: center; font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; color: var(--muted); min-width: 6px; }
+  .bar-labels span.hot { color: var(--gold); font-weight: 700; }
+
+  /* dots for sampling */
+  .dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; max-width: 260px; margin: 0.6rem 0; }
+  .dots i { aspect-ratio: 1; border-radius: 50%; background: var(--border-strong); }
+  .dots i.log { background: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+  .timeline { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; margin: 0.6rem 0; }
+  .timeline div { display: flex; gap: 0.5rem; align-items: center; }
+  .timeline .pill { font-family: ui-monospace, Consolas, monospace; font-size: 0.75rem; padding: 0.1rem 0.45rem; border-radius: 4px; }
+  .pill.net { background: var(--bad-soft); color: var(--bad); }
+  .pill.hit { background: var(--good-soft); color: var(--good); }
+
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+  @media (max-width: 640px) { .vs { grid-template-columns: 1fr; } }
+  .vs .card h4 { margin: 0 0 0.4rem; }
+  .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 999px; margin-left: 0.3rem; }
+  .badge.good { background: var(--good-soft); color: var(--good); }
+  .badge.bad { background: var(--bad-soft); color: var(--bad); }
+
+  .counter { font-family: ui-monospace, Consolas, monospace; font-size: 2rem; font-weight: 800; color: var(--gold); line-height: 1; }
+
+  /* lanes (final architecture) */
+  .lanes { display: flex; flex-direction: column; gap: 0.8rem; }
+  .lane { display: flex; gap: 0.8rem; align-items: stretch; }
+  .lane .lane-name { flex: none; width: 5.5rem; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; border-radius: 8px; text-align: center; padding: 0.3rem; }
+  .lane.batch .lane-name { background: var(--accent-soft); color: var(--accent-ink); }
+  .lane.rt .lane-name { background: var(--gold-soft); color: var(--gold); }
+  .lane .flow { flex: 1; }
+  @media (max-width: 640px) { .lane { flex-direction: column; } .lane .lane-name { width: auto; } }
+  .merge { text-align: center; margin: 0.4rem 0; color: var(--muted); font-weight: 700; }
+
+  .qnum { font-family: ui-monospace, Consolas, monospace; font-weight: 800; color: var(--accent); }
+
+  /* nav */
+  nav.toc { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+  nav.toc a { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); display: block; position: relative; }
+  nav.toc a.on { background: var(--accent); transform: scale(1.3); }
+  nav.toc a span { display: none; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 0.75rem; background: var(--ink); color: var(--bg); padding: 0.1rem 0.45rem; border-radius: 4px; }
+  nav.toc a:hover span { display: block; }
+  @media (max-width: 1100px) { nav.toc { display: none; } }
+  .kbd-hint { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; }
+</style>
+</head>
+<body>
+<nav class="toc" id="toc"></nav>
+<div class="page">
+
+  <header class="hero">
+    <div class="eyebrow">가상 면접 사례로 배우는 대규모 시스템 설계 기초 · Chapter 13</div>
+    <h1 class="title">검색어 자동완성 시스템</h1>
+    <p class="subtitle">사용자가 글자를 입력할 때마다, 그 글자로 시작하는 가장 인기 있는 검색어 5개를 100ms 안에 보여주는 시스템을 설계한다.</p>
+    <div class="tags">
+      <span class="tag">Trie</span><span class="tag">Top-k 캐싱</span><span class="tag">Key-Value 저장소</span><span class="tag">브라우저 캐싱</span><span class="tag">샤딩</span>
+    </div>
+    <div class="kbd-hint">발표 팁 : <code>←</code> <code>→</code> 키로 섹션 이동</div>
+  </header>
+
+  <div class="searchdemo">
+    <div class="fake-search"><span>🔍</span><span id="typed" class="mono"></span><span class="caret"></span></div>
+    <ul class="suggest" id="suggest"></ul>
+    <div class="keystrokes" id="keystrokes"></div>
+    <p class="note" style="margin:0.6rem 0 0">글자 하나를 칠 때마다 서버에 요청이 1번씩 간다. <b>dinner</b> 한 번 검색 = 요청 <b>6번</b>.</p>
+  </div>
+
+  <!-- 01 -->
+  <section class="step" data-title="요구사항">
+    <div class="step-head"><span class="step-num">STEP 01</span><h2 class="step-title">요구사항</h2></div>
+    <p class="step-intro">면접관과의 질의응답으로 도출한 다섯 가지 요구사항.</p>
+    <div class="grid g5">
+      <div class="card req"><div class="ico">⚡</div><h4>빠른 응답 속도</h4><p>입력마다 충분히 빠르게. 페이스북은 <b>100ms 이내</b>.</p></div>
+      <div class="card req"><div class="ico">🎯</div><h4>연관성</h4><p>입력과 연관된 검색어. 여기선 <b>접두어 매칭</b>.</p></div>
+      <div class="card req"><div class="ico">📊</div><h4>정렬</h4><p>인기도 순위 모델로 정렬. 여기선 <b>질의 빈도 순</b>.</p></div>
+      <div class="card req"><div class="ico">📈</div><h4>규모 확장성</h4><p>많은 트래픽을 감당하도록 확장 가능.</p></div>
+      <div class="card req"><div class="ico">🛡️</div><h4>고가용성</h4><p>일부 장애가 나도 계속 동작.</p></div>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section class="step" data-title="규모 추정">
+    <div class="step-head"><span class="step-num">STEP 02</span><h2 class="step-title">개략적 규모 추정</h2></div>
+    <p class="step-intro">하루 천만 명이 쓰는 검색창이라면, 서버는 초당 몇 번의 요청을 받을까?</p>
+    <div class="card">
+      <div class="calc">
+        <div class="num">10,000,000<small>일간 사용자</small></div><span class="op">×</span>
+        <div class="num">10<small>인당 검색</small></div><span class="op">×</span>
+        <div class="num">20<small>검색당 요청 (20자)</small></div><span class="op">÷</span>
+        <div class="num">86,400<small>하루(초)</small></div><span class="op">≈</span>
+        <div class="num res">24,000 QPS</div>
+      </div>
+      <p class="note" style="margin:0.9rem 0 0">평균 4단어 × 5글자 = 20바이트(ASCII). 최대 QPS는 2배인 <b>48,000</b>. 질의 중 20%가 신규라면 하루 <b>0.4GB</b>씩 데이터가 늘어난다.</p>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section class="step" data-title="개략적 설계">
+    <div class="step-head"><span class="step-num">STEP 03</span><h2 class="step-title">개략적 설계 : 빈도 테이블</h2></div>
+    <p class="step-intro">가장 단순한 출발점. 검색어마다 횟수를 세고, 많이 검색된 순으로 5개를 꺼낸다.</p>
+    <div class="vs">
+      <div class="card">
+        <h4>① 데이터 수집 서비스</h4>
+        <p class="note" style="margin:0 0 0.5rem">검색이 들어올 때마다 frequency + 1</p>
+        <div class="tbl-wrap"><table id="freqTbl"><thead><tr><th>query</th><th>frequency</th></tr></thead><tbody></tbody></table></div>
+        <div class="controls" style="margin-top:0.7rem"><button class="act ghost" id="addTwitch">"twitch" 검색 +1</button></div>
+      </div>
+      <div class="card">
+        <h4>② 질의 서비스</h4>
+        <p class="note" style="margin:0 0 0.5rem">접두어 "tw" 입력 시</p>
+<pre class="mono" style="margin:0;white-space:pre-wrap;font-size:0.85rem;background:var(--surface-alt);padding:0.8rem;border-radius:8px">SELECT * FROM frequency_table
+WHERE query LIKE 'tw%'
+ORDER BY frequency DESC
+LIMIT 5</pre>
+      </div>
+    </div>
+    <div class="callout warn"><strong>문제</strong><p>데이터가 많아지면 <code>LIKE 'tw%'</code> + 정렬이 매 글자마다 실행된다. 초당 24,000번은 DB가 버틸 수 없다 → <b>트라이</b>로 해결.</p></div>
+  </section>
+
+  <!-- 04 -->
+  <section class="step" data-title="트라이">
+    <div class="step-head"><span class="step-num">STEP 04</span><h2 class="step-title">트라이(Trie) 자료구조</h2></div>
+    <p class="step-intro">re<b>trie</b>val에서 온 이름. 문자열의 <b>공통 접두어를 공유</b>하는 트리다. 노드 하나 = 글자 하나, 루트에서 노드까지의 경로 = 접두어. 검색어 노드에는 빈도를 함께 저장한다.</p>
+
+    <div class="card">
+      <div class="controls">
+        <input type="text" id="prefixIn" value="tr" aria-label="접두어 입력">
+        <button class="chip" data-p="t">t</button><button class="chip" data-p="tr">tr</button><button class="chip" data-p="tru">tru</button><button class="chip" data-p="w">w</button><button class="chip" data-p="wi">wi</button>
+        <label class="toggle"><input type="checkbox" id="cacheToggle"> 노드별 top-k 캐시</label>
+      </div>
+      <div class="demo stack">
+        <div>
+          <div class="svgbox"><svg class="trie" id="trie1"></svg></div>
+          <div class="legend">
+            <span><i style="border-color:var(--accent);background:var(--accent-soft)"></i>① 접두어 경로</span>
+            <span><i style="border-color:var(--gold);background:var(--gold-soft)"></i>② 순회하는 서브트리</span>
+            <span><i style="border-color:var(--ink-soft)"></i>실제 검색어 노드(빈도)</span>
+          </div>
+        </div>
+        <div>
+          <ol class="steps row">
+            <li class="s1"><div class="lbl">① 접두어 노드 찾기 <span class="cx" id="cx1">O(p)</span></div><div class="val" id="v1"></div></li>
+            <li class="s2" id="st2"><div class="lbl">② 서브트리 전체 순회 <span class="cx">O(c)</span></div><div class="val" id="v2"></div></li>
+            <li class="s3" id="st3"><div class="lbl">③ 빈도순 정렬 <span class="cx">O(c log c)</span></div><div class="val" id="v3"></div></li>
+          </ol>
+          <div class="result" id="res"></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>최적화 두 가지로 O(1) 만들기</h3>
+    <div class="vs">
+      <div class="card">
+        <h4>1. 접두어 최대 길이 제한</h4>
+        <p style="margin:0">사람은 긴 검색어를 거의 입력하지 않는다. 길이를 50 같은 상수로 막으면 <code>O(p)</code> → <code>O(1)</code>.</p>
+      </div>
+      <div class="card">
+        <h4>2. 노드마다 인기 검색어 캐시</h4>
+        <p style="margin:0">각 노드에 <b>top-k를 미리 저장</b>. ②③ 단계가 사라진다. 위 데모에서 <b>"노드별 top-k 캐시"</b>를 켜 보자.</p>
+        <p class="note" style="margin:0.4rem 0 0">대가 : 저장 공간 증가. 응답 속도가 중요한 자동완성에선 감수할 만한 트레이드오프.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section class="step" data-title="데이터 수집">
+    <div class="step-head"><span class="step-num">STEP 05</span><h2 class="step-title">데이터 수집 서비스</h2></div>
+    <p class="step-intro">검색할 때마다 트라이를 고치면 질의 서비스가 느려진다. 인기 검색어는 자주 바뀌지 않으니, <b>로그를 모아 주기적으로</b> 트라이를 만든다.</p>
+    <div class="flow">
+      <div class="box"><b>분석 로그</b><small>검색 질의를 append만<br>(수정 없음)</small></div><span class="arrow">→</span>
+      <div class="box"><b>로그 취합 서버</b><small>실시간성 요구에 맞춰<br>취합 주기 조절</small></div><span class="arrow">→</span>
+      <div class="box"><b>취합된 데이터</b><small>query · frequency<br>(주 단위 집계)</small></div><span class="arrow">→</span>
+      <div class="box hl"><b>작업 서버</b><small>주기적으로<br>트라이 재구성</small></div><span class="arrow">→</span>
+      <div class="box hl"><b>트라이 DB</b><small>영속 저장소</small></div><span class="arrow">→</span>
+      <div class="box gold"><b>트라이 캐시</b><small>DB 스냅샷을<br>분산 캐시에</small></div>
+    </div>
+
+    <h3>트라이를 Key-Value 저장소(해시 테이블)에 저장하기</h3>
+    <p class="step-intro" style="margin-bottom:0.8rem">노드 하나 → 항목 하나. <b>key = 접두어</b>, <b>value = 그 노드의 top-k</b>. 트리를 탐색할 필요 없이 <code>get("be")</code> 한 번이면 끝.</p>
+    <div class="card">
+      <div class="demo">
+        <div class="svgbox"><svg class="trie show-cache" id="trie2"></svg></div>
+        <div class="tbl-wrap"><table id="kvTbl"><thead><tr><th>key</th><th>value</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="callout info" style="margin-top:1rem"><strong>영단어 전부를 넣으면?</strong><p>약 17만 단어 → 노드 약 50만 개 × 항목당 약 80B ≈ <b>40MB</b> (어림 계산). 노드 수만큼 항목이 생긴다.</p></div>
+    </div>
+
+    <h3>빈도가 바뀌면? : 쓰기 증폭</h3>
+    <div class="card">
+      <div class="controls">
+        <button class="act" id="bumpBeer">beer 빈도 10 → 30</button>
+        <button class="act ghost" id="resetBeer">되돌리기</button>
+        <span style="margin-left:auto;text-align:right"><span class="counter" id="writeCnt">0</span> <span class="note">번 쓰기</span></span>
+      </div>
+      <p style="margin:0">검색어 하나의 빈도가 바뀌면 <b>그 검색어의 모든 접두어 key</b>(<code>beer</code>, <code>bee</code>, <code>be</code>, <code>b</code>)를 읽고 → 순위 재계산 → 덮어써야 한다. 위 표에서 노랗게 바뀌는 행을 보자.</p>
+      <div class="grid g3" style="margin-top:1rem">
+        <div class="callout warn" style="margin:0"><strong>쓰기 증폭</strong><p>갱신 1회 = 검색어 길이 p만큼 쓰기. 약 <code>O(p × k log k)</code>.</p></div>
+        <div class="callout warn" style="margin:0"><strong>Hot key 경합</strong><p><code>b</code>, <code>be</code> 같은 짧은 key는 수많은 검색어가 공유 → 갱신이 몰린다.</p></div>
+        <div class="callout warn" style="margin:0"><strong>캐시 정합성</strong><p>트라이 캐시에도 같은 변경을 반영해야 한다.</p></div>
+      </div>
+      <div class="callout tip"><strong>그래서 책의 선택</strong><p>질의마다 갱신하지 않고, 작업 서버가 <b>주기적으로 트라이를 새로 만들어 통째로 교체</b>한다.</p></div>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section class="step" data-title="질의 서비스">
+    <div class="step-head"><span class="step-num">STEP 06</span><h2 class="step-title">질의 서비스</h2></div>
+    <div class="flow">
+      <div class="box"><b>사용자</b><small>"be" 입력</small></div><span class="arrow">→</span>
+      <div class="box"><b>로드밸런서</b></div><span class="arrow">→</span>
+      <div class="box hl"><b>API 서버</b></div><span class="arrow">→</span>
+      <div class="box gold"><b>트라이 캐시</b><small>hit → 바로 응답</small></div><span class="arrow">⇢</span>
+      <div class="box"><b>트라이 DB</b><small>miss → 조회 후<br>캐시에 write (look-aside)</small></div>
+    </div>
+
+    <h3>더 빠르게 : 최적화 방안</h3>
+    <div class="grid g3">
+      <div class="card">
+        <h4 style="margin:0 0 0.3rem">AJAX 요청</h4>
+        <p style="margin:0;font-size:0.92rem">페이지 새로고침 없이 비동기로 결과만 주고받는다.</p>
+        <div class="timeline">
+          <div><span class="pill hit">페이지</span> 그대로 유지</div>
+          <div><span class="pill net">XHR</span> <code>GET /autocomplete?q=be</code></div>
+          <div><span class="pill hit">DOM</span> 추천 목록만 교체</div>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="margin:0 0 0.3rem">브라우저 캐싱</h4>
+        <p style="margin:0;font-size:0.92rem">결과는 잘 안 바뀌니 브라우저에 저장. 같은 접두어는 서버에 안 간다.</p>
+        <div class="timeline">
+          <div><span class="pill net">1회차</span> "be" → 서버 요청</div>
+          <div><span class="pill hit">2회차</span> "be" → 브라우저 캐시</div>
+        </div>
+        <code style="display:block;white-space:normal;font-size:0.78rem">Cache-Control: private, max-age=3600</code>
+        <p class="note" style="margin:0.3rem 0 0">구글 : 사용자 브라우저에만, 1시간</p>
+      </div>
+      <div class="card">
+        <h4 style="margin:0 0 0.3rem">데이터 샘플링</h4>
+        <p style="margin:0;font-size:0.92rem">모든 질의를 로깅하면 CPU·저장 공간 낭비. N개 중 1개만 기록.</p>
+        <div class="dots" id="dots"></div>
+        <p class="note" style="margin:0">N = 10 : 요청 50개 중 5개만 로그로 남는다</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section class="step" data-title="트라이 연산">
+    <div class="step-head"><span class="step-num">STEP 07</span><h2 class="step-title">트라이 연산</h2></div>
+    <div class="grid g3">
+      <div class="card">
+        <h4 style="margin:0 0 0.3rem">생성</h4>
+        <p style="margin:0;font-size:0.92rem">작업 서버가 취합된 로그·DB 데이터로 트라이를 만든다.</p>
+      </div>
+      <div class="card">
+        <h4 style="margin:0 0 0.3rem">갱신</h4>
+        <p style="margin:0 0 0.3rem;font-size:0.92rem">① 새 트라이로 <b>통째 교체</b> <span class="badge good">권장</span></p>
+        <p style="margin:0;font-size:0.92rem">② 노드 <b>개별 갱신</b> <span class="badge bad">느림</span><br><span class="note">모든 상위 노드까지 갱신 필요 (STEP 05의 쓰기 증폭)</span></p>
+      </div>
+      <div class="card">
+        <h4 style="margin:0 0 0.3rem">삭제</h4>
+        <p style="margin:0;font-size:0.92rem">혐오·폭력적 검색어는 <b>필터 계층</b>에서 걸러낸다. 물리 삭제는 나중에 비동기로.</p>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:1rem">
+      <div class="box hl"><b>API 서버</b></div><span class="arrow">→</span>
+      <div class="box gold"><b>필터 계층</b><small>위험 검색어 제거</small></div><span class="arrow">→</span>
+      <div class="box"><b>트라이 캐시</b></div><span class="arrow">⇢</span>
+      <div class="box"><b>트라이 DB</b><small>물리 삭제는 비동기</small></div>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section class="step" data-title="규모 확장">
+    <div class="step-head"><span class="step-num">STEP 08</span><h2 class="step-title">저장소 규모 확장 : 샤딩</h2></div>
+    <p class="step-intro">트라이가 커지면 나눠 담아야 한다. 첫 글자 a~z로 26개 샤드에 나누면?</p>
+    <div class="card">
+      <p style="margin:0 0 0.2rem;font-weight:700">첫 글자별 영단어 비율 <span class="note" style="font-weight:400">(대략적인 분포, 예시)</span></p>
+      <div class="bars" id="bars" role="img" aria-label="첫 글자별 영단어 비율 막대그래프. s와 c가 가장 많고 x, y, z, q가 가장 적다."></div>
+      <div class="bar-labels" id="barLabels"></div>
+      <div class="callout warn"><strong>Hot shard</strong><p><b>s</b>, <b>c</b>로 시작하는 단어는 <b>x</b>, <b>z</b>의 수십 배. 알파벳 단위로 자르면 일부 샤드에만 데이터와 트래픽이 몰린다.</p></div>
+    </div>
+
+    <h3>검색어 대응 샤드 관리자</h3>
+    <p class="step-intro" style="margin-bottom:0.8rem">데이터 양이 비슷해지도록 <b>접두어 범위 → 샤드</b> 매핑을 관리한다. 웹 서버는 ① 관리자에게 샤드를 묻고 ② 그 샤드에서 데이터를 꺼낸다.</p>
+    <div class="card">
+      <div class="controls">
+        <input type="text" id="shardIn" value="sun" aria-label="검색어 입력">
+        <button class="chip" data-w="apple">apple</button><button class="chip" data-w="sun">sun</button><button class="chip" data-w="tree">tree</button><button class="chip" data-w="zoo">zoo</button>
+      </div>
+      <div class="demo">
+        <div class="tbl-wrap"><table id="shardTbl"><thead><tr><th>접두어 범위</th><th>샤드</th></tr></thead><tbody></tbody></table></div>
+        <ol class="steps">
+          <li class="s1"><div class="lbl">① 어느 샤드에 있나?</div><div class="val" id="sh1"></div></li>
+          <li class="s3"><div class="lbl">② 샤드에서 데이터 추출</div><div class="val" id="sh2"></div></li>
+        </ol>
+      </div>
+      <p class="note" style="margin:0.8rem 0 0"><code>s</code> 하나 ≈ <code>u</code>~<code>z</code> 전체. <code>s</code>가 더 커지면 <code>sa~sm</code> / <code>sn~sz</code>로 쪼개고 <b>매핑 테이블만</b> 바꾼다. 웹 서버 로직은 그대로.</p>
+    </div>
+  </section>
+
+  <!-- 09 -->
+  <section class="step" data-title="마무리">
+    <div class="step-head"><span class="step-num">STEP 09</span><h2 class="step-title">마무리 : 면접관의 추가 질문</h2></div>
+    <div class="grid g3">
+      <div class="card"><span class="qnum">Q1</span> <b>다국어 지원은?</b><p style="margin:0.4rem 0 0;font-size:0.92rem">트라이에 <b>유니코드</b> 데이터를 저장한다.</p></div>
+      <div class="card"><span class="qnum">Q2</span> <b>국가별 인기 검색어가 다르면?</b><p style="margin:0.4rem 0 0;font-size:0.92rem">국가별로 <b>다른 트라이</b>. <b>CDN</b>에 올려 응답 속도 향상.</p></div>
+      <div class="card"><span class="qnum">Q3</span> <b>실시간 급상승 검색어는?</b><p style="margin:0.4rem 0 0;font-size:0.92rem">현 설계로는 어렵다. 주 1회 갱신 + 트라이 재구성이 느리다.</p></div>
+    </div>
+
+    <h3>Q3 해결책 : 배치 + 실시간 이중 구조</h3>
+    <p class="step-intro" style="margin-bottom:0.8rem">무거운 트라이 재구성은 그대로 두고, 급상승 검색어만 처리하는 가벼운 실시간 계층을 옆에 붙인다.</p>
+    <div class="card">
+      <div class="lanes">
+        <div class="lane batch">
+          <div class="lane-name">배치<br>(주 1회)</div>
+          <div class="flow">
+            <div class="box"><b>검색 로그</b></div><span class="arrow">→</span>
+            <div class="box"><b>작업 서버</b><small>주간 집계</small></div><span class="arrow">→</span>
+            <div class="box hl"><b>트라이</b><small>안정적인 top-k</small></div>
+          </div>
+        </div>
+        <div class="lane rt">
+          <div class="lane-name">실시간<br>(분 단위)</div>
+          <div class="flow">
+            <div class="box"><b>Kafka</b><small>검색 로그 스트림</small></div><span class="arrow">→</span>
+            <div class="box"><b>Flink / Spark</b><small>10분 슬라이딩 윈도우<br>증가율 + 시간 감쇠</small></div><span class="arrow">→</span>
+            <div class="box gold"><b>Redis</b><small>접두어별 trending top-k<br>TTL로 자동 만료</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="merge">↓ 두 결과를 merge ↓</div>
+      <div class="flow"><div class="box hl"><b>질의 서비스</b><small>배치 top-k + trending top-k → 최종 5개</small></div></div>
+      <div class="grid g3" style="margin-top:1rem">
+        <div class="callout info" style="margin:0"><strong>증가율 기준</strong><p>절대 빈도가 아니라 <b>평소 대비 증가율</b>로 판단해야, 원래 늘 많이 찾는 검색어와 구분된다.</p></div>
+        <div class="callout info" style="margin:0"><strong>시간 감쇠 점수</strong><p><code>빈도 × e^(-λ·Δt)</code> : 오래된 검색일수록 점수를 깎는다.</p></div>
+        <div class="callout info" style="margin:0"><strong>근사 집계</strong><p><b>Count-Min Sketch + top-k 힙</b>으로 상위 검색어만 근사 집계해 메모리 절약.</p></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  // ---------- hook: typing demo ----------
+  const pool = { dinner: 920, 'dinner ideas': 610, 'dinner recipes': 540, 'dining table': 330, 'dinosaur': 280, 'disney plus': 870, 'discord': 760, 'dictionary': 300, 'doordash': 900, 'dog names': 410 };
+  const word = 'dinner';
+  const typed = document.getElementById('typed'), sug = document.getElementById('suggest'), ksBox = document.getElementById('keystrokes');
+  const ks = [];
+  for (let i = 1; i <= word.length; i++) { const s = document.createElement('span'); s.className = 'ks'; s.textContent = word.slice(0, i); ksBox.appendChild(s); ks.push(s); }
+  let t = 0;
+  function tick() {
+    const n = t % (word.length + 3);
+    const cur = word.slice(0, Math.min(n, word.length));
+    typed.textContent = cur;
+    ks.forEach((el, i) => el.classList.toggle('on', i < n));
+    const top = cur ? Object.entries(pool).filter(([q]) => q.startsWith(cur)).sort((a, b) => b[1] - a[1]).slice(0, 5) : [];
+    sug.innerHTML = top.map(([q, f]) => `<li><span style="color:var(--ink);font-size:1rem"><b>${cur}</b>${q.slice(cur.length)}</span><span>${f}</span></li>`).join('');
+    t++;
+  }
+  tick(); setInterval(tick, 900);
+
+  // ---------- step 03 frequency table ----------
+  const freq = [['twitter', 35], ['twitch', 29], ['twilight', 25], ['twin peak', 21], ['twitch prime', 18], ['twitter search', 14]];
+  const fb = document.querySelector('#freqTbl tbody');
+  function drawFreq(flash) {
+    freq.sort((a, b) => b[1] - a[1]);
+    fb.innerHTML = freq.map(([q, f]) => `<tr class="${q === flash ? 'flash' : ''}"><td class="mono">${q}</td><td class="mono">${f}</td></tr>`).join('');
+  }
+  drawFreq();
+  document.getElementById('addTwitch').onclick = () => { freq.find(r => r[0] === 'twitch')[1]++; drawFreq('twitch'); };
+
+  // ---------- trie helpers ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  function build(words) {
+    const nodes = { '': { key: '', kids: [], freq: null } };
+    for (const [w, f] of Object.entries(words)) {
+      for (let i = 1; i <= w.length; i++) {
+        const p = w.slice(0, i);
+        if (!nodes[p]) { nodes[p] = { key: p, kids: [], freq: null }; nodes[w.slice(0, i - 1)].kids.push(p); }
+      }
+      nodes[w].freq = f;
+    }
+    return nodes;
+  }
+  function topk(nodes, p, k) {
+    const out = [];
+    (function walk(x) { const n = nodes[x]; if (n.freq != null) out.push([x, n.freq]); n.kids.forEach(walk); })(p);
+    return out.sort((a, b) => b[1] - a[1]).slice(0, k);
+  }
+  function layout(nodes, colW, rowH) {
+    let leaf = 0; const pos = {};
+    (function place(x, d) {
+      const n = nodes[x];
+      if (!n.kids.length) { pos[x] = { x: leaf++ * colW + colW / 2, y: d * rowH + 30 }; return; }
+      n.kids.forEach(c => place(c, d + 1));
+      const xs = n.kids.map(c => pos[c].x);
+      pos[x] = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: d * rowH + 30 };
+    })('', 0);
+    return { pos, width: leaf * colW };
+  }
+  function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; }
+  function render(svg, nodes, k, colW, rowH) {
+    const { pos, width } = layout(nodes, colW, rowH);
+    const depth = Math.max(...Object.keys(nodes).map(s => s.length));
+    const H = depth * rowH + 90;
+    svg.setAttribute('viewBox', `0 0 ${width + 70} ${H}`);
+    svg.innerHTML = '';
+    const reg = {};
+    const gE = el('g', {}, svg), gN = el('g', {}, svg), gC = el('g', { class: 'cache-g' }, svg);
+    for (const key in nodes) {
+      const p = pos[key];
+      reg[key] = {};
+      if (key) {
+        const pp = pos[key.slice(0, -1)];
+        reg[key].edge = el('path', { class: 'edge', d: `M${pp.x},${pp.y + 14} L${p.x},${p.y - 14}` }, gE);
+      }
+      const label = key || 'root';
+      const n = nodes[key];
+      const w = Math.max(44, label.length * 8.5 + 18);
+      reg[key].rect = el('rect', { class: 'node' + (n.freq != null ? ' word' : ''), x: p.x - w / 2, y: p.y - 14, width: w, height: 28, rx: 7 }, gN);
+      const tx = el('text', { x: p.x, y: p.y }, gN); tx.textContent = label;
+      if (key === '') tx.setAttribute('fill', 'var(--muted)');
+      if (n.freq != null) { const f = el('text', { class: 'freq', x: p.x, y: p.y + 23 }, gN); f.textContent = n.freq; }
+      if (key) {
+        const tk = topk(nodes, key, k).map(([q, f]) => `${q}:${f}`);
+        const y0 = p.y - (tk.length - 1) * 6.5;
+        tk.forEach((s, i) => { const c = el('text', { class: 'cache', x: p.x + w / 2 + 6, y: y0 + i * 13 }, gC); c.textContent = s; });
+      }
+    }
+    return reg;
+  }
+
+  // ---------- step 04 interactive trie ----------
+  const words1 = { tree: 10, try: 29, true: 35, toy: 14, wish: 25, win: 50 };
+  const T1 = build(words1);
+  const svg1 = document.getElementById('trie1');
+  const reg1 = render(svg1, T1, 2, 120, 64);
+  const inp = document.getElementById('prefixIn'), cacheT = document.getElementById('cacheToggle');
+  function highlight() {
+    const p = inp.value.trim().toLowerCase();
+    document.querySelectorAll('#prefixIn ~ .chip').forEach(c => c.classList.toggle('on', c.dataset.p === p));
+    for (const k in reg1) { reg1[k].rect.classList.remove('path', 'sub'); reg1[k].edge && reg1[k].edge.classList.remove('path', 'sub'); }
+    const v1 = document.getElementById('v1'), v2 = document.getElementById('v2'), v3 = document.getElementById('v3'), res = document.getElementById('res');
+    const cached = cacheT.checked;
+    document.getElementById('st2').classList.toggle('skip', cached);
+    document.getElementById('st3').classList.toggle('skip', cached);
+    svg1.classList.toggle('show-cache', cached);
+    if (!p) { v1.textContent = '접두어를 입력하세요'; v2.textContent = v3.textContent = res.textContent = ''; return; }
+    const path = [''];
+    for (let i = 1; i <= p.length; i++) path.push(p.slice(0, i));
+    if (!T1[p]) { v1.textContent = `"${p}" 노드 없음`; v2.textContent = v3.textContent = ''; res.textContent = '결과 없음'; return; }
+    path.forEach(k => { reg1[k].rect.classList.add('path'); reg1[k].edge && reg1[k].edge.classList.add('path'); });
+    v1.textContent = path.map(k => k || 'root').join(' → ');
+    const found = [];
+    (function walk(x) { if (x !== p) { reg1[x].rect.classList.add('sub'); reg1[x].edge.classList.add('sub'); } if (T1[x].freq != null) found.push(`${x}:${T1[x].freq}`); T1[x].kids.forEach(walk); })(p);
+    v2.textContent = cached ? '캐시 사용 → 건너뜀' : `찾은 검색어 : ${found.join(', ')}`;
+    const top = topk(T1, p, 2);
+    v3.textContent = cached ? '캐시 사용 → 건너뜀' : found.slice().sort((a, b) => +b.split(':')[1] - +a.split(':')[1]).join(' > ');
+    res.textContent = `top-2 : [${top.map(([q, f]) => q + ':' + f).join(', ')}]` + (cached ? '  ← 노드 캐시에서 바로' : '');
+  }
+  inp.addEventListener('input', highlight);
+  cacheT.addEventListener('change', highlight);
+  document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { inp.value = b.dataset.p; highlight(); });
+  highlight();
+
+  // ---------- step 05 kv store + update overhead ----------
+  const words2 = { be: 15, bee: 20, beer: 10, best: 35 };
+  const svg2 = document.getElementById('trie2');
+  const kvBody = document.querySelector('#kvTbl tbody');
+  let reg2, prev = {};
+  const order = ['b', 'be', 'bee', 'bes', 'beer', 'best'];
+  function drawKV(changedKeys) {
+    const T2 = build(words2);
+    reg2 = render(svg2, T2, 4, 160, 70);
+    const now = {};
+    order.forEach(k => now[k] = topk(T2, k, 4).map(([q, f]) => `${q}:${f}`).join(', '));
+    kvBody.innerHTML = order.map(k => `<tr class="${changedKeys && changedKeys.includes(k) ? 'changed flash' : ''}"><td class="mono">${k}</td><td class="mono">[${now[k]}]</td></tr>`).join('');
+    (changedKeys || []).forEach(k => { reg2[k].rect.classList.add('changed'); });
+    prev = now;
+  }
+  drawKV();
+  const cnt = document.getElementById('writeCnt');
+  document.getElementById('bumpBeer').onclick = () => { words2.beer = 30; drawKV(['beer', 'bee', 'be', 'b']); cnt.textContent = 4; };
+  document.getElementById('resetBeer').onclick = () => { words2.beer = 10; drawKV(); cnt.textContent = 0; };
+
+  // ---------- step 06 sampling dots ----------
+  const dots = document.getElementById('dots');
+  for (let i = 0; i < 50; i++) { const d = document.createElement('i'); if (i % 10 === 0) d.className = 'log'; d.title = i % 10 === 0 ? '로깅됨' : '버려짐'; dots.appendChild(d); }
+
+  // ---------- step 08 letter distribution ----------
+  const dist = { a: 5.7, b: 5.4, c: 9.4, d: 6.0, e: 3.9, f: 4.0, g: 3.2, h: 3.5, i: 3.6, j: 0.8, k: 0.9, l: 3.0, m: 5.5, n: 2.2, o: 2.5, p: 7.7, q: 0.5, r: 5.2, s: 11.0, t: 5.1, u: 2.9, v: 1.5, w: 2.7, x: 0.1, y: 0.3, z: 0.3 };
+  const max = 11;
+  const bars = document.getElementById('bars'), bl = document.getElementById('barLabels');
+  for (const [ch, v] of Object.entries(dist)) {
+    const hot = ch === 's' || ch === 'c';
+    const b = document.createElement('div'); b.className = 'bar' + (hot ? ' hot' : ''); b.style.height = (v / max * 100) + '%';
+    b.innerHTML = `<span class="tip">${ch} : 약 ${v}%</span>`; bars.appendChild(b);
+    const l = document.createElement('span'); l.textContent = ch; if (hot) l.className = 'hot'; bl.appendChild(l);
+  }
+
+  // ---------- step 08 shard manager ----------
+  const shards = [['a ~ r', 'a', 'r', '샤드 1'], ['s', 's', 's', '샤드 2'], ['t', 't', 't', '샤드 3'], ['u ~ z', 'u', 'z', '샤드 4']];
+  const sIn = document.getElementById('shardIn'), sBody = document.querySelector('#shardTbl tbody');
+  function shard() {
+    const w = sIn.value.trim().toLowerCase(), c = w[0];
+    const hit = shards.find(s => c && c >= s[1] && c <= s[2]);
+    sBody.innerHTML = shards.map(s => `<tr class="${s === hit ? 'changed' : ''}"><td class="mono">${s[0]}</td><td>${s[3]}</td></tr>`).join('');
+    document.querySelectorAll('[data-w]').forEach(b => b.classList.toggle('on', b.dataset.w === w));
+    document.getElementById('sh1').textContent = hit ? `"${w}" 첫 글자 '${c}' → ${hit[3]}` : '영문 검색어를 입력하세요';
+    document.getElementById('sh2').textContent = hit ? `${hit[3]}.get("${w}") → top-k 응답` : '';
+  }
+  sIn.addEventListener('input', shard);
+  document.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { sIn.value = b.dataset.w; shard(); });
+  shard();
+
+  // ---------- section nav (← → keys) ----------
+  const secs = [...document.querySelectorAll('section.step')];
+  const toc = document.getElementById('toc');
+  secs.forEach((s, i) => { s.id = 's' + (i + 1); const a = document.createElement('a'); a.href = '#s' + (i + 1); a.innerHTML = `<span>${s.dataset.title}</span>`; toc.appendChild(a); });
+  function current() { let idx = -1; secs.forEach((s, i) => { if (s.getBoundingClientRect().top < window.innerHeight * 0.35) idx = i; }); return idx; }
+  function syncToc() { const i = current(); [...toc.children].forEach((a, j) => a.classList.toggle('on', j === i)); }
+  window.addEventListener('scroll', syncToc, { passive: true }); syncToc();
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const i = current();
+    const next = e.key === 'ArrowRight' ? Math.min(i + 1, secs.length - 1) : i - 1;
+    if (next < 0) window.scrollTo({ top: 0, behavior: 'smooth' }); else secs[next].scrollIntoView({ behavior: 'smooth' });
+  });
+})();
+</script>
+</body>
+</html>
