@@ -5,6 +5,11 @@ import { tmpdir } from 'os'
 import type { WebSocket } from 'ws'
 import type { AgentPermissions } from '../agents/permissions'
 
+// 에이전트가 접근 가능한 최상위 디렉터리. claude-workspace 전체를 가리키며,
+// 이 디렉터리의 .claude/settings.json에 정의된 deny 규칙(.env 등)은
+// --permission-mode와 무관하게 강제 적용된다.
+const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT ?? process.cwd()
+
 const SYSTEM_SUFFIX = `
 
 ---
@@ -70,6 +75,7 @@ export function executeAgentCommand(
         : ['-p', command, '--system-prompt-file', systemFile!, '--output-format', 'stream-json', '--verbose', '--include-partial-messages', ...permArgs]
 
       proc = spawn('claude', args, {
+        cwd: WORKSPACE_ROOT,
         stdio: ['ignore', 'pipe', 'pipe'],
       })
 
