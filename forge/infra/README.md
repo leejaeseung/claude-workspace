@@ -36,7 +36,7 @@ Tailscale auth key를 미리 발급했다면 `TS_AUTHKEY=tskey-... bash /root/bo
 
 ## 선택: 공개 SSH 닫기
 
-Tailscale SSH(`ssh admin@forge`)로 접속되는 것을 확인한 뒤:
+Tailscale 경유(`ssh admin@<Tailscale IP>`)로 접속되는 것을 확인한 뒤:
 
 ```bash
 sudo ufw delete allow OpenSSH

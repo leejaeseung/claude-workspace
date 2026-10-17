@@ -176,3 +176,11 @@ Jason Company의 엄격한 채용 프로세스입니다. **hr-chief + 3명 평�
 ### 연결 원칙
 - 관련 개념은 `[[경로/파일명]]` 형식으로 연결
 - 고아 페이지 최소화 — 새 페이지 생성 시 index.md에 반드시 등록
+
+---
+
+## Forge 프로젝트
+
+위치: `forge/` · 브랜치: `feature/forge`
+
+Hetzner 서버 + Android 앱으로 원격 AI 에이전트를 운영하는 개인 프로젝트. Forge 관련 요청을 받으면 **`forge/docs/PLAN.md`를 먼저 읽고**, `forge/CLAUDE.md`의 작업 규칙을 따른다.
