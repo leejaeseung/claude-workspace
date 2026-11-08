@@ -46,3 +46,4 @@ server/node_modules/
 .env
 lt.log
 expo.log
+data/

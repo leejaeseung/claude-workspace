@@ -7,64 +7,69 @@ import { Card } from '@/components/Card';
 import { OutlookCard } from '@/components/OutlookCard';
 import { PriceChart } from '@/components/PriceChart';
 import { NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
-import { fetchAnalysis } from '@/lib/api';
-import { signed, signedPct, usd } from '@/lib/format';
-import { addRecent } from '@/lib/recent';
+import { fetchReport, NotFoundError } from '@/lib/api';
+import { signed, signedPct, timeAgo, usd } from '@/lib/format';
+import { isPending, POLL_MS, refreshReports, startReport } from '@/lib/reports';
 import { dirColor, useTheme } from '@/lib/theme';
-import type { Analysis } from '@/lib/types';
+import type { Report } from '@/lib/types';
 
 export default function StockScreen() {
   const { ticker: raw } = useLocalSearchParams<{ ticker: string }>();
   const ticker = String(raw ?? '').toUpperCase();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [data, setData] = useState<Analysis | null>(null);
+  const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const ctrl = useRef<AbortController | null>(null);
 
-  const run = useCallback(
-    (refresh: boolean) => {
-      ctrl.current?.abort();
-      const c = new AbortController();
-      ctrl.current = c;
-      fetchAnalysis(ticker, refresh, c.signal)
-        .then((a) => {
-          if (c.signal.aborted) return;
-          setData(a);
-          setError(null);
-          addRecent({ ticker: a.quote.ticker, name: a.quote.name });
-        })
-        .catch((e) => !c.signal.aborted && setError(e instanceof Error ? e.message : String(e)))
-        .finally(() => !c.signal.aborted && setRefreshing(false));
-    },
-    [ticker],
-  );
+  const load = useCallback(() => {
+    ctrl.current?.abort();
+    const c = new AbortController();
+    ctrl.current = c;
+    fetchReport(ticker, c.signal)
+      // Opened before anything was requested (e.g. a deep link): start collecting now.
+      .catch((e) => (e instanceof NotFoundError ? startReport(ticker).then(() => fetchReport(ticker, c.signal)) : Promise.reject(e)))
+      .then((r) => {
+        if (c.signal.aborted) return;
+        setReport(r);
+        setError(null);
+      })
+      .catch((e) => !c.signal.aborted && setError(e instanceof Error ? e.message : String(e)));
+  }, [ticker]);
 
   useEffect(() => {
-    run(false);
+    load();
     return () => ctrl.current?.abort();
-  }, [run]);
+  }, [load]);
 
-  const refresh = () => {
-    setRefreshing(true);
-    run(true);
-  };
+  // Poll while the server is still collecting; also keep the home list in step.
+  const pending = report ? isPending(report.status) : false;
+  useEffect(() => {
+    if (!pending) return;
+    const id = setInterval(load, POLL_MS);
+    return () => {
+      clearInterval(id);
+      refreshReports();
+    };
+  }, [pending, load]);
 
-  const retry = () => {
+  const recollect = () => {
     setError(null);
-    run(false);
+    startReport(ticker)
+      .then(load)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
   const title = <Stack.Screen options={{ title: ticker }} />;
+  const data = report?.analysis ?? null;
 
-  if (!data && !error) {
+  if (!data && (pending || (!report && !error))) {
     return (
       <View style={styles.center}>
         {title}
         <ActivityIndicator size="large" color={theme.accent} />
         <Text style={[styles.loading, { color: theme.subtext }]}>
-          {ticker}의 시세·뉴스·재무 정보를 수집하고 분석하는 중…
+          서버가 {ticker}의 시세·뉴스·재무 정보를 수집하고 있어요.{'\n'}화면을 나가도 수집은 계속되고, 끝나면 홈의 분석 목록에서 볼 수 있어요.
         </Text>
       </View>
     );
@@ -75,13 +80,18 @@ export default function StockScreen() {
       <View style={styles.center}>
         {title}
         <Text style={[styles.errTitle, { color: theme.text }]}>분석하지 못했어요</Text>
-        <Text style={[styles.loading, { color: theme.subtext }]}>{error}</Text>
-        <Pressable onPress={retry} style={[styles.retry, { backgroundColor: theme.accent }]}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>다시 시도</Text>
+        <Text style={[styles.loading, { color: theme.subtext }]}>{error ?? report?.error}</Text>
+        <Pressable onPress={report ? recollect : load} style={[styles.retry, { backgroundColor: theme.accent }]}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>다시 요청</Text>
         </Pressable>
       </View>
     );
   }
+
+  let banner: { text: string; color: string } | null = null;
+  if (pending) banner = { text: '최신 자료를 새로 수집하는 중이에요. 끝나면 자동으로 바뀌어요.', color: theme.accent };
+  else if (error) banner = { text: `요청 실패: ${error}`, color: theme.down };
+  else if (report?.status === 'error') banner = { text: `새로 수집하지 못했어요: ${report.error}`, color: theme.down };
 
   const q = data.quote;
   const color = dirColor(theme, q.change);
@@ -89,9 +99,12 @@ export default function StockScreen() {
   return (
     <ScrollView
       contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.accent} />}>
+      refreshControl={<RefreshControl refreshing={false} onRefresh={recollect} tintColor={theme.accent} />}>
       {title}
-      {error ? <Text style={[styles.banner, { color: theme.down }]}>새로고침 실패: {error}</Text> : null}
+      {banner ? <Text style={[styles.banner, { color: banner.color }]}>{banner.text}</Text> : null}
+      <Text style={[styles.asOf, { color: theme.subtext }]}>
+        {timeAgo(data.generatedAt)} 수집{pending ? '' : ' · 당겨서 새로 수집'}
+      </Text>
 
       <Card>
         <Text style={[styles.name, { color: theme.subtext }]} numberOfLines={1}>
@@ -122,7 +135,8 @@ const styles = StyleSheet.create({
   loading: { marginTop: 14, textAlign: 'center', lineHeight: 20 },
   errTitle: { fontSize: 18, fontWeight: '700' },
   retry: { marginTop: 18, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
-  banner: { marginBottom: 8, textAlign: 'center' },
+  banner: { marginBottom: 6, textAlign: 'center', lineHeight: 20 },
+  asOf: { fontSize: 12, textAlign: 'center', marginBottom: 10 },
   name: { fontSize: 14 },
   price: { fontSize: 34, fontWeight: '800', marginTop: 4 },
   change: { fontSize: 16, fontWeight: '700', marginTop: 2 },

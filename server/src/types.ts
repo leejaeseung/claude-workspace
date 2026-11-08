@@ -117,3 +117,23 @@ export interface SearchResult {
   exchange: string;
   type: string;
 }
+
+export type ReportStatus = 'queued' | 'running' | 'done' | 'error';
+
+/** One background analysis per ticker. `analysis` keeps the last successful result while a re-run is in progress. */
+export interface ReportSummary {
+  ticker: string;
+  name: string | null;
+  status: ReportStatus;
+  requestedAt: string; // ISO
+  finishedAt: string | null; // ISO, last completed run (success or failure)
+  error: string | null; // set when the latest run failed
+  price: number | null;
+  changePercent: number | null;
+  direction: Direction | null;
+  generatedAt: string | null; // ISO, when `analysis` was collected
+}
+
+export interface Report extends ReportSummary {
+  analysis: Analysis | null;
+}

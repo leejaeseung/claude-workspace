@@ -26,10 +26,15 @@ npm test             # 지표·감성·방향성 단위 테스트
 ```
 
 API
-- `GET /api/analyze/:ticker` — 분석 결과(시세, 지표, 재무, 방향성, 요약, 뉴스). 10분 캐시이며 `?refresh=1`을 붙이면 새로 수집합니다.
+분석은 백그라운드 작업으로 돌아갑니다. 요청하면 바로 응답하고, 서버가 자료를 수집(동시에 최대 2종목)해 `server/data/reports.json`에 저장합니다. 앱은 나중에 목록에서 결과를 확인합니다. 서버를 다시 시작하면 중단된 작업은 다시 대기열에 들어갑니다.
+
+- `POST /api/reports/:ticker` — 분석(재수집) 요청. 202와 함께 상태 요약을 바로 돌려줍니다. 이미 대기·수집 중이면 그 작업을 그대로 돌려줍니다.
+- `GET /api/reports` — 요청한 종목 목록과 상태(`queued`·`running`·`done`·`error`), 가격·방향성 요약
+- `GET /api/reports/:ticker` — 전체 분석 결과(`analysis`). 재수집 중이거나 실패해도 마지막 성공 결과는 남아 있습니다.
+- `DELETE /api/reports/:ticker` — 목록에서 삭제
 - `GET /api/search?q=nvidia` — 미국 상장 주식·ETF 검색
 
-환경 변수: `PORT`(기본 8787), `CACHE_TTL_MS`(기본 600000)
+환경 변수: `PORT`(기본 8787), `DATA_FILE`(기본 `server/data/reports.json`)
 
 ### 2. 앱
 
@@ -37,6 +42,16 @@ API
 npm install
 cp .env.example .env   # EXPO_PUBLIC_API_URL을 휴대폰에서 접근할 수 있는 서버 주소로 바꾸세요
 npx expo start         # Expo Go 앱으로 QR 코드를 스캔하거나, a 키로 에뮬레이터 실행
+```
+
+### 원격(클라우드) 서버에서 휴대폰으로 테스트
+
+같은 Wi-Fi에 있지 않을 때는 서버와 Expo를 모두 터널로 엽니다.
+
+```bash
+scripts/tunnel.sh my-subdomain   # https://my-subdomain.loca.lt — 끊기면 같은 주소로 자동 재연결
+# .env: EXPO_PUBLIC_API_URL=https://my-subdomain.loca.lt
+npx expo start --tunnel ngrok    # 출력된 exp://….exp.direct 주소를 Expo Go에 입력
 ```
 
 - Android 에뮬레이터는 기본값 `http://10.0.2.2:8787`로 PC의 서버에 접속합니다.
