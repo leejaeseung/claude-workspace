@@ -14,6 +14,7 @@ function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
     'Cache-Control': 'no-store',
   });
   res.end(JSON.stringify(body));

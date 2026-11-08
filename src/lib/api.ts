@@ -12,7 +12,8 @@ export class ApiError extends Error {}
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { signal });
+    // The header lets requests through localtunnel's (loca.lt) reminder page; other hosts ignore it.
+    res = await fetch(`${API_URL}${path}`, { signal, headers: { 'bypass-tunnel-reminder': '1' } });
   } catch (e) {
     if (signal?.aborted) throw e;
     throw new ApiError(`서버(${API_URL})에 연결할 수 없습니다. 서버가 실행 중인지, 주소가 맞는지 확인해 주세요.`);
