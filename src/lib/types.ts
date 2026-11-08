@@ -57,7 +57,8 @@ export interface Fundamentals {
   dividend: string | null;
   shortFloat: string | null;
   beta: string | null;
-  earningsDate: string | null;
+  earningsDate: string | null; // raw Finviz text, e.g. "Nov 17 AMC"
+  earningsAt?: string | null; // YYYY-MM-DD, the occurrence of earningsDate nearest to collection time
   analystRecom: number | null; // 1 = Strong Buy … 5 = Sell
   targetPrice: number | null;
   targetUpside: number | null; // %
@@ -147,6 +148,17 @@ export interface ReportSummary {
   changePercent: number | null;
   direction: Direction | null;
   generatedAt: string | null; // ISO, when `analysis` was collected
+  score?: number | null; // outlook score -100..100
+  earningsAt?: string | null; // YYYY-MM-DD
+  previous?: ReportSnapshot | null; // the collection before `analysis`
+}
+
+/** Headline numbers from the run before the latest one, to show what changed. */
+export interface ReportSnapshot {
+  price: number;
+  direction: Direction;
+  score: number;
+  generatedAt: string; // ISO
 }
 
 export interface Report extends ReportSummary {

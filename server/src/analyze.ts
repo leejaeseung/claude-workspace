@@ -84,7 +84,7 @@ export async function analyze(ticker: string): Promise<Analysis> {
       average: news.length ? Math.round((news.reduce((a, n) => a + n.sentiment, 0) / news.length) * 100) / 100 : 0,
       ...counts,
     },
-    chart: history.points.slice(-126),
+    chart: history.points, // ~1 year of daily closes; the app picks the period to show
     sources: [
       { name: 'Yahoo Finance 시세', ok: true },
       ...[finviz, yahooNews, googleNews, translation].map((s) => (s.ok ? { name: s.name, ok: true } : { name: s.name, ok: false, error: s.error })),

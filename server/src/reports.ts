@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import { NotUsStockError, TickerNotFoundError } from './sources/yahoo.ts';
-import type { Analysis, Report, ReportSummary } from './types.ts';
+import type { Analysis, Report, ReportSnapshot, ReportSummary } from './types.ts';
 
 type Analyzer = (ticker: string) => Promise<Analysis>;
 
@@ -10,6 +10,11 @@ export function errorMessage(e: unknown): string {
   if (e instanceof TickerNotFoundError) return '해당 티커를 찾을 수 없습니다.';
   if (e instanceof NotUsStockError) return '미국 거래소(NYSE·NASDAQ 등)에 상장된 종목만 지원합니다.';
   return '데이터를 가져오지 못했습니다. 잠시 후 다시 요청해 주세요.';
+}
+
+function snapshot(r: Report): ReportSnapshot | null {
+  const a = r.analysis;
+  return a ? { price: a.quote.price, direction: a.outlook.direction, score: a.outlook.score, generatedAt: a.generatedAt } : null;
 }
 
 export function summarize(r: Report): ReportSummary {
@@ -45,6 +50,10 @@ export class ReportStore {
     for (const r of list) {
       // Jobs cut off by a restart are queued again.
       if (r.status === 'queued' || r.status === 'running') r.status = 'queued';
+      // Fields added later: fill them in from the stored analysis.
+      r.score ??= r.analysis?.outlook.score ?? null;
+      r.earningsAt ??= r.analysis?.fundamentals?.earningsAt ?? null;
+      r.previous ??= null;
       this.reports.set(r.ticker, r);
       if (r.status === 'queued') this.queue.push(r.ticker);
     }
@@ -76,6 +85,9 @@ export class ReportStore {
           changePercent: null,
           direction: null,
           generatedAt: null,
+          score: null,
+          earningsAt: null,
+          previous: null,
           analysis: null,
         };
     this.reports.set(ticker, r);
@@ -83,6 +95,26 @@ export class ReportStore {
     this.persist();
     this.pump();
     return r;
+  }
+
+  /** Queues every ticker that is not already collecting; returns how many were queued. */
+  refreshAll(): number {
+    let n = 0;
+    for (const r of [...this.reports.values()]) {
+      if (r.status === 'queued' || r.status === 'running') continue;
+      this.request(r.ticker);
+      n++;
+    }
+    return n;
+  }
+
+  /** Queues tickers whose last completed run is older than `maxAgeMs` (used by the auto-refresh timer). */
+  refreshStale(maxAgeMs: number, now = Date.now()): string[] {
+    const stale = [...this.reports.values()].filter(
+      (r) => (r.status === 'done' || r.status === 'error') && now - Date.parse(r.finishedAt ?? r.requestedAt) >= maxAgeMs,
+    );
+    for (const r of stale) this.request(r.ticker);
+    return stale.map((r) => r.ticker);
   }
 
   remove(ticker: string): boolean {
@@ -118,7 +150,11 @@ export class ReportStore {
     const started = Date.now();
     try {
       const a = await this.analyzer(ticker);
+      const before = this.reports.get(ticker);
       this.update(ticker, {
+        previous: (before && snapshot(before)) ?? before?.previous ?? null,
+        score: a.outlook.score,
+        earningsAt: a.fundamentals?.earningsAt ?? null,
         status: 'done',
         name: a.quote.name,
         finishedAt: new Date().toISOString(),

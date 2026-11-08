@@ -29,3 +29,23 @@ export function timeAgo(iso: string | null, now = Date.now()): string {
 
 export const DIRECTION_LABEL = { up: '상승', neutral: '보합', down: '하락' } as const;
 export const CONFIDENCE_LABEL = { low: '낮음', medium: '보통', high: '높음' } as const;
+
+/** Days from today (local) to a YYYY-MM-DD date: positive = ahead. */
+export function daysUntil(ymd: string, now = new Date()): number {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / 86_400_000);
+}
+
+/** "D-3", "D-day", "2일 전" — or null when the date is too far either way to be worth flagging. */
+export function earningsBadge(ymd: string | null | undefined, now = new Date(), ahead = 14, behind = 7): string | null {
+  if (!ymd) return null;
+  const n = daysUntil(ymd, now);
+  if (n > ahead || n < -behind) return null;
+  return n > 0 ? `실적 D-${n}` : n === 0 ? '실적 D-day' : `실적 ${-n}일 전 발표`;
+}
+
+export function fmtDate(ymd: string): string {
+  const [, m, d] = ymd.split('-').map(Number);
+  return `${m}월 ${d}일`;
+}

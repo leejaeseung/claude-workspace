@@ -9,6 +9,10 @@ import { search } from './sources/yahoo.ts';
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA_FILE = process.env.DATA_FILE ?? fileURLToPath(new URL('../data/reports.json', import.meta.url));
 
+// Saved reports older than this are collected again automatically (0 turns it off).
+const AUTO_REFRESH_HOURS = Number(process.env.AUTO_REFRESH_HOURS ?? 6);
+const AUTO_REFRESH_CHECK_MS = 10 * 60_000;
+
 const reports = new ReportStore(DATA_FILE, analyze);
 
 function send(res: ServerResponse, status: number, body: unknown) {
@@ -38,7 +42,11 @@ const server = createServer(async (req, res) => {
       return send(res, 200, { results: await search(q.slice(0, 50)) });
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/reports') return send(res, 200, { reports: reports.list() });
+    if (url.pathname === '/api/reports') {
+      if (req.method === 'GET') return send(res, 200, { reports: reports.list(), autoRefreshHours: AUTO_REFRESH_HOURS });
+      if (req.method === 'POST') return send(res, 202, { queued: reports.refreshAll(), reports: reports.list() });
+      return send(res, 405, { error: '지원하지 않는 메서드입니다.' });
+    }
 
     const m = url.pathname.match(/^\/api\/reports\/([^/]+)$/);
     if (m) {
@@ -61,4 +69,12 @@ const server = createServer(async (req, res) => {
 });
 
 await reports.load();
+if (AUTO_REFRESH_HOURS > 0) {
+  const tick = () => {
+    const queued = reports.refreshStale(AUTO_REFRESH_HOURS * 3_600_000);
+    if (queued.length) console.log(`auto-refresh: ${queued.join(', ')}`);
+  };
+  tick();
+  setInterval(tick, AUTO_REFRESH_CHECK_MS).unref();
+}
 server.listen(PORT, '0.0.0.0', () => console.log(`stock-app server listening on http://0.0.0.0:${PORT}`));

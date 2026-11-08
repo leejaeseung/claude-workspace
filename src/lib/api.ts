@@ -48,6 +48,11 @@ export async function listReports(signal?: AbortSignal) {
   return (await call<{ reports: ReportSummary[] }>('/api/reports', { signal })).reports;
 }
 
+/** Queues a re-collection of every saved ticker. */
+export async function refreshAllReports() {
+  return call<{ queued: number; reports: ReportSummary[] }>('/api/reports', { method: 'POST' });
+}
+
 export async function searchTickers(q: string, signal?: AbortSignal) {
   return (await call<{ results: SearchResult[] }>(`/api/search?q=${encodeURIComponent(q)}`, { signal })).results;
 }
