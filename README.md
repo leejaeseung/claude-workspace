@@ -11,7 +11,7 @@ stock-app/
 └── server/         Node.js 분석 서버 (TypeScript, tsx로 실행)
     └── src/
         ├── sources/   Yahoo Finance(시세·검색·뉴스 RSS), Finviz(재무·애널리스트·뉴스), Google 뉴스 RSS, Google 번역(뉴스 제목 한국어 번역)
-        └── analysis/  기술적 지표, 헤드라인 감성 분석, 방향성 점수, 한국어 요약 생성
+        └── analysis/  기술적 지표, 지표별 좋음·나쁨 평가, 헤드라인 감성 분석, 방향성 점수, 한국어 요약 생성
 ```
 
 ## 실행

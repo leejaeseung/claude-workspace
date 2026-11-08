@@ -98,10 +98,24 @@ export interface PricePoint {
   c: number;
 }
 
+export type MetricRating = 'good' | 'neutral' | 'bad';
+export type MetricGroup = '밸류에이션' | '성장성' | '수익성' | '재무 건전성' | '위험·수급' | '기술적 흐름';
+
+/** One key metric with a rule-based verdict. */
+export interface MetricEval {
+  group: MetricGroup;
+  key: string;
+  label: string;
+  value: string; // display string
+  rating: MetricRating;
+  comment: string; // why, in Korean
+}
+
 export interface Analysis {
   quote: Quote;
   technicals: Technicals;
   fundamentals: Fundamentals | null;
+  metrics?: MetricEval[]; // absent in reports saved before metric ratings existed
   outlook: Outlook;
   summary: string[];
   news: NewsItem[];

@@ -17,6 +17,11 @@ const light = {
   upSoft: '#FFE3E3',
   downSoft: '#D0EBFF',
   neutralSoft: '#E9ECEF',
+  // Metric verdicts use green/orange so they never read as price up/down (red/blue).
+  good: '#2B8A3E',
+  bad: '#D9480F',
+  goodSoft: '#D3F9D8',
+  badSoft: '#FFE8CC',
 };
 
 const dark: typeof light = {
@@ -33,6 +38,10 @@ const dark: typeof light = {
   upSoft: '#3B1A1A',
   downSoft: '#132B40',
   neutralSoft: '#2C2E33',
+  good: '#69DB7C',
+  bad: '#FFA94D',
+  goodSoft: '#173A20',
+  badSoft: '#3D2612',
 };
 
 export type Theme = typeof light;

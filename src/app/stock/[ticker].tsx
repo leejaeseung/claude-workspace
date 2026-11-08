@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { OutlookCard } from '@/components/OutlookCard';
 import { PriceChart } from '@/components/PriceChart';
-import { NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
+import { MetricsCard, NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
 import { fetchReport, NotFoundError } from '@/lib/api';
 import { signed, signedPct, timeAgo, usd } from '@/lib/format';
 import { isPending, POLL_MS, refreshReports, startReport } from '@/lib/reports';
@@ -122,9 +122,10 @@ export default function StockScreen() {
 
       <OutlookCard outlook={data.outlook} />
       <SummaryCard lines={data.summary} />
+      {data.metrics?.length ? <MetricsCard a={data} metrics={data.metrics} /> : null}
       <SignalsCard signals={data.outlook.signals} />
       <NewsCard a={data} />
-      <StatsCard a={data} />
+      {data.metrics?.length ? null : <StatsCard a={data} />}
       <SourcesFooter a={data} />
     </ScrollView>
   );

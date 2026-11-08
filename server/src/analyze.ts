@@ -1,4 +1,5 @@
 import { computeTechnicals } from './analysis/indicators.ts';
+import { evaluateMetrics } from './analysis/metrics.ts';
 import { buildOutlook } from './analysis/outlook.ts';
 import { headlineSentiment, label } from './analysis/sentiment.ts';
 import { buildSummary } from './analysis/summary.ts';
@@ -75,6 +76,7 @@ export async function analyze(ticker: string): Promise<Analysis> {
     quote: history.quote,
     technicals: tech,
     fundamentals,
+    metrics: evaluateMetrics(history.quote, tech, fundamentals),
     outlook,
     summary,
     news,

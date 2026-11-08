@@ -3,8 +3,8 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { compact, signedPct, timeAgo, usd } from '@/lib/format';
-import { dirColor, useTheme } from '@/lib/theme';
-import type { Analysis, NewsItem, Signal } from '@/lib/types';
+import { dirColor, useTheme, type Theme } from '@/lib/theme';
+import type { Analysis, MetricEval, MetricRating, NewsItem, Signal } from '@/lib/types';
 
 export function SummaryCard({ lines }: { lines: string[] }) {
   const theme = useTheme();
@@ -57,6 +57,87 @@ export function SignalsCard({ signals }: { signals: Signal[] }) {
       {shown.map((s) => (
         <SignalRow key={s.key} s={s} />
       ))}
+    </Card>
+  );
+}
+
+const RATING_LABEL = { good: '좋음', neutral: '보통', bad: '나쁨' } as const;
+type RatingFilter = 'all' | MetricRating;
+
+function ratingColors(theme: Theme, r: MetricRating) {
+  if (r === 'good') return { fg: theme.good, bg: theme.goodSoft };
+  if (r === 'bad') return { fg: theme.bad, bg: theme.badSoft };
+  return { fg: theme.neutral, bg: theme.neutralSoft };
+}
+
+function MetricRow({ m, first }: { m: MetricEval; first: boolean }) {
+  const theme = useTheme();
+  const c = ratingColors(theme, m.rating);
+  return (
+    <View style={[styles.metric, !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
+      <View style={styles.metricHead}>
+        <Text style={{ color: theme.text, fontWeight: '600', flexShrink: 1 }}>{m.label}</Text>
+        <Text style={{ color: theme.text, flex: 1, textAlign: 'right' }} numberOfLines={1}>
+          {m.value}
+        </Text>
+        <View style={[styles.badge, { backgroundColor: c.bg }]}>
+          <Text style={{ color: c.fg, fontSize: 12, fontWeight: '700' }}>{RATING_LABEL[m.rating]}</Text>
+        </View>
+      </View>
+      <Text style={{ color: theme.subtext, fontSize: 13, lineHeight: 18, marginTop: 3 }}>{m.comment}</Text>
+    </View>
+  );
+}
+
+/** Each key metric with a good/neutral/bad verdict, grouped by theme. */
+export function MetricsCard({ a, metrics }: { a: Analysis; metrics: MetricEval[] }) {
+  const theme = useTheme();
+  const [filter, setFilter] = useState<RatingFilter>('all');
+  const f = a.fundamentals;
+  const q = a.quote;
+  const count = (r: MetricRating) => metrics.filter((m) => m.rating === r).length;
+  const tabs: [RatingFilter, string][] = [
+    ['all', `전체 ${metrics.length}`],
+    ['good', `좋음 ${count('good')}`],
+    ['neutral', `보통 ${count('neutral')}`],
+    ['bad', `나쁨 ${count('bad')}`],
+  ];
+  const shown = metrics.filter((m) => filter === 'all' || m.rating === filter);
+  const groups = [...new Set(shown.map((m) => m.group))];
+  const info = [
+    [f?.sector, f?.industry].filter(Boolean).join(' · '),
+    f?.marketCap ? `시가총액 ${f.marketCap}` : '',
+    q.fiftyTwoWeekLow != null && q.fiftyTwoWeekHigh != null ? `52주 ${usd(q.fiftyTwoWeekLow)} ~ ${usd(q.fiftyTwoWeekHigh)}` : '',
+  ].filter(Boolean);
+
+  return (
+    <Card title="주요 지표 평가">
+      {info.length ? <Text style={{ color: theme.subtext, marginBottom: 10, lineHeight: 19 }}>{info.join('\n')}</Text> : null}
+      <View style={styles.tabs}>
+        {tabs.map(([k, label]) => {
+          const on = filter === k;
+          const c = k === 'all' ? { fg: theme.accent } : ratingColors(theme, k);
+          return (
+            <Pressable key={k} onPress={() => setFilter(k)} style={[styles.tab, { backgroundColor: on ? c.fg : theme.input }]}>
+              <Text style={{ color: on ? '#fff' : theme.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {groups.map((g) => (
+        <View key={g} style={{ marginTop: 6 }}>
+          <Text style={[styles.groupTitle, { color: theme.subtext }]}>{g}</Text>
+          {shown
+            .filter((m) => m.group === g)
+            .map((m, i) => (
+              <MetricRow key={m.key} m={m} first={i === 0} />
+            ))}
+        </View>
+      ))}
+      {shown.length === 0 && <Text style={{ color: theme.subtext, paddingVertical: 12 }}>해당하는 지표가 없습니다.</Text>}
+      <Text style={{ color: theme.subtext, fontSize: 12, lineHeight: 17, marginTop: 10 }}>
+        미국 주식 전반에 쓰는 일반적인 기준으로 평가했어요. 업종마다 적정 수준이 다르니 참고용으로 보세요.
+      </Text>
     </Card>
   );
 }
@@ -235,5 +316,9 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   tab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   more: { alignItems: 'center', paddingTop: 10 },
+  metric: { paddingVertical: 10 },
+  metricHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  groupTitle: { fontSize: 13, fontWeight: '700', marginTop: 8, marginBottom: 2 },
   foot: { fontSize: 12, lineHeight: 17, marginTop: 4 },
 });
