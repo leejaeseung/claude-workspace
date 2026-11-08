@@ -44,3 +44,5 @@ yarn-error.*
 server.log
 server/node_modules/
 .env
+lt.log
+expo.log
