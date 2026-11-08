@@ -46,12 +46,13 @@ npx expo start         # Expo Go 앱으로 QR 코드를 스캔하거나, a 키�
 
 ### 원격(클라우드) 서버에서 휴대폰으로 테스트
 
-같은 Wi-Fi에 있지 않을 때는 서버와 Expo를 모두 터널로 엽니다.
+같은 Wi-Fi에 있지 않을 때는 Expo 개발 서버를 터널로 엽니다. 개발 중에는 Metro가 `/api/*` 요청을 분석 서버(`API_PROXY_TARGET`, 기본 `http://127.0.0.1:8787`)로 넘겨 주므로(`metro.config.js`), 터널 하나로 앱과 API를 모두 쓸 수 있습니다.
 
 ```bash
-scripts/tunnel.sh my-subdomain   # https://my-subdomain.loca.lt — 끊기면 같은 주소로 자동 재연결
-# .env: EXPO_PUBLIC_API_URL=https://my-subdomain.loca.lt
-npx expo start --tunnel ngrok    # 출력된 exp://….exp.direct 주소를 Expo Go에 입력
+npm run server                   # 분석 서버
+npx expo start --tunnel ngrok    # https://….exp.direct 주소가 생깁니다
+# .env: EXPO_PUBLIC_API_URL=https://….exp.direct  (바꾼 뒤 Expo 재시작)
+# Expo Go에서 exp://….exp.direct 입력
 ```
 
 - Android 에뮬레이터는 기본값 `http://10.0.2.2:8787`로 PC의 서버에 접속합니다.

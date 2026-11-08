@@ -14,8 +14,8 @@ export class NotFoundError extends ApiError {}
 async function call<T>(path: string, { method = 'GET', signal }: { method?: string; signal?: AbortSignal } = {}): Promise<T> {
   let res: Response;
   try {
-    // The header lets requests through localtunnel's (loca.lt) reminder page; other hosts ignore it.
-    res = await fetch(`${API_URL}${path}`, { method, signal, headers: { 'bypass-tunnel-reminder': '1' } });
+    // Skips the interstitial page tunnels like ngrok can show; other hosts ignore the header.
+    res = await fetch(`${API_URL}${path}`, { method, signal, headers: { 'ngrok-skip-browser-warning': '1' } });
   } catch (e) {
     if (signal?.aborted) throw e;
     throw new ApiError(`서버(${API_URL})에 연결할 수 없습니다. 서버가 실행 중인지, 주소가 맞는지 확인해 주세요.`);
