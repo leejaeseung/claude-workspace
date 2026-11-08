@@ -139,7 +139,12 @@ function NewsRow({ n }: { n: NewsItem }) {
       style={({ pressed }) => [styles.news, { borderTopColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
       <View style={[styles.dot, { backgroundColor: dot }]} />
       <View style={{ flex: 1 }}>
-        <Text style={{ color: theme.text, lineHeight: 20 }}>{n.title}</Text>
+        <Text style={{ color: theme.text, lineHeight: 20 }}>{n.titleKo || n.title}</Text>
+        {n.titleKo ? (
+          <Text style={{ color: theme.subtext, fontSize: 12, lineHeight: 17, marginTop: 2 }} numberOfLines={2}>
+            {n.title}
+          </Text>
+        ) : null}
         <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>
           {n.source}
           {n.publishedAt ? ` · ${timeAgo(n.publishedAt)}` : ''}
@@ -178,7 +183,7 @@ export function NewsCard({ a }: { a: Analysis }) {
         ))}
       </View>
       <Text style={{ color: theme.subtext, fontSize: 12, marginBottom: 4 }}>
-        제목의 단어로 분위기를 자동 분류했어요. 누르면 원문이 열립니다.
+        제목은 자동 번역했고 분위기는 영어 원문 단어로 분류했어요. 누르면 원문 기사가 열립니다.
       </Text>
       {list.slice(0, limit).map((n, i) => (
         <NewsRow key={`${i}-${n.url}`} n={n} />

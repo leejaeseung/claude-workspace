@@ -10,7 +10,7 @@ stock-app/
 │   └── lib/        API 클라이언트, 타입(server/src/types.ts 사본), 테마
 └── server/         Node.js 분석 서버 (TypeScript, tsx로 실행)
     └── src/
-        ├── sources/   Yahoo Finance(시세·검색·뉴스 RSS), Finviz(재무·애널리스트·뉴스), Google 뉴스 RSS
+        ├── sources/   Yahoo Finance(시세·검색·뉴스 RSS), Finviz(재무·애널리스트·뉴스), Google 뉴스 RSS, Google 번역(뉴스 제목 한국어 번역)
         └── analysis/  기술적 지표, 헤드라인 감성 분석, 방향성 점수, 한국어 요약 생성
 ```
 

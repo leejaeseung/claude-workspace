@@ -65,6 +65,7 @@ export interface Fundamentals {
 
 export interface NewsItem {
   title: string;
+  titleKo?: string | null; // Korean translation of the title; absent in reports saved before translation existed
   url: string;
   source: string;
   publishedAt: string | null; // ISO

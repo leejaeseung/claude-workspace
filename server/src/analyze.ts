@@ -4,6 +4,7 @@ import { headlineSentiment, label } from './analysis/sentiment.ts';
 import { buildSummary } from './analysis/summary.ts';
 import { getFinviz } from './sources/finviz.ts';
 import { getGoogleNews } from './sources/google.ts';
+import { translateToKorean } from './sources/translate.ts';
 import { getHistory, getYahooNews, type RawNews } from './sources/yahoo.ts';
 import type { Analysis, NewsItem } from './types.ts';
 
@@ -24,7 +25,7 @@ export function mergeNews(lists: RawNews[][], limit = 40): NewsItem[] {
     if (!key || seen.has(key)) continue;
     seen.add(key);
     const s = headlineSentiment(n.title);
-    merged.push({ ...n, sentiment: Math.round(s * 100) / 100, sentimentLabel: label(s) });
+    merged.push({ ...n, titleKo: null, sentiment: Math.round(s * 100) / 100, sentimentLabel: label(s) });
   }
   return merged
     .sort((a, b) => (b.publishedAt ? Date.parse(b.publishedAt) : 0) - (a.publishedAt ? Date.parse(a.publishedAt) : 0))
@@ -59,6 +60,10 @@ export async function analyze(ticker: string): Promise<Analysis> {
     googleNews.ok ? googleNews.value : [],
   ]);
 
+  // Best-effort: news still shows in English if translation fails.
+  const translation = await settle('Google 번역', translateToKorean(news.map((n) => n.title)));
+  if (translation.ok) news.forEach((n, i) => (n.titleKo = translation.value[i]));
+
   const outlook = buildOutlook(history.quote, technicals, fundamentals, news);
   const summary = buildSummary(history.quote, technicals, fundamentals, news, outlook);
 
@@ -80,7 +85,7 @@ export async function analyze(ticker: string): Promise<Analysis> {
     chart: history.points.slice(-126),
     sources: [
       { name: 'Yahoo Finance 시세', ok: true },
-      ...[finviz, yahooNews, googleNews].map((s) => (s.ok ? { name: s.name, ok: true } : { name: s.name, ok: false, error: s.error })),
+      ...[finviz, yahooNews, googleNews, translation].map((s) => (s.ok ? { name: s.name, ok: true } : { name: s.name, ok: false, error: s.error })),
     ],
     generatedAt: new Date().toISOString(),
     disclaimer: DISCLAIMER,
