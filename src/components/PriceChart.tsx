@@ -19,8 +19,18 @@ const PERIODS = [
 type PeriodKey = (typeof PERIODS)[number]['key'];
 
 const fmtDate = (t: number) => new Date(t * 1000).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' });
+const fmtDateTime = (t: number) =>
+  new Date(t * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-export function PriceChart({ points: all }: { points: PricePoint[] }) {
+export function PriceChart({
+  points: all,
+  hint = '차트를 눌러 날짜별 가격 보기',
+  withTime = false,
+}: {
+  points: PricePoint[];
+  hint?: string;
+  withTime?: boolean; // label touched points with the time of day (for intraday data)
+}) {
   const theme = useTheme();
   const [width, setWidth] = useState(0);
   const [period, setPeriod] = useState<PeriodKey>('6M');
@@ -70,10 +80,10 @@ export function PriceChart({ points: all }: { points: PricePoint[] }) {
       <View style={styles.legend}>
         {hit ? (
           <Text style={{ color: theme.text, fontSize: 12, fontWeight: '600' }}>
-            {fmtDate(hit.t)} · {usd(hit.c)}
+            {(withTime ? fmtDateTime : fmtDate)(hit.t)} · {usd(hit.c)}
           </Text>
         ) : (
-          <Text style={{ color: theme.subtext, fontSize: 12 }}>최근 {active.label} · 차트를 눌러 날짜별 가격 보기</Text>
+          <Text style={{ color: theme.subtext, fontSize: 12 }}>최근 {active.label} · {hint}</Text>
         )}
         <Text style={{ color: hit ? dirColor(theme, hitChange) : color, fontSize: 12, fontWeight: '700' }}>
           {(hit ? hitChange : change) >= 0 ? '+' : ''}

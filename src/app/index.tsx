@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { searchTickers } from '@/lib/api';
+import { fetchPortfolio, searchTickers } from '@/lib/api';
 import { DIRECTION_LABEL, earningsBadge, signedPct, timeAgo, usd } from '@/lib/format';
 import {
   isPending,
@@ -18,7 +18,7 @@ import {
   type SortKey,
 } from '@/lib/reports';
 import { dirColor, useTheme, type Theme } from '@/lib/theme';
-import type { ReportSummary, SearchResult } from '@/lib/types';
+import type { Portfolio, ReportSummary, SearchResult } from '@/lib/types';
 
 const POPULAR = ['AAPL', 'NVDA', 'MSFT', 'TSLA', 'AMZN', 'GOOGL', 'META', 'SPY', 'QQQ'];
 
@@ -114,6 +114,16 @@ export default function HomeScreen() {
   const [sort, setSort] = useState<SortKey>('recent');
   const [refreshing, setRefreshing] = useState(false);
   const sorted = sortReports(reports, sort);
+  const [paper, setPaper] = useState<Portfolio | null>(null);
+
+  // The paper card shows the running result; refresh it whenever home comes back into view.
+  useFocusEffect(
+    useCallback(() => {
+      fetchPortfolio()
+        .then(setPaper)
+        .catch(() => {});
+    }, []),
+  );
 
   // Remember the chosen sort order between launches.
   useEffect(() => {
@@ -253,6 +263,26 @@ export default function HomeScreen() {
           <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>미국 대형주 60여 개 중 방향성 점수가 높은 종목</Text>
         </View>
         <Text style={{ color: theme.up, fontSize: 20, fontWeight: '700' }}>›</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/paper')}
+        style={({ pressed }) => [styles.reco, { marginTop: 8, backgroundColor: theme.card, opacity: pressed ? 0.7 : 1 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16 }}>모의 투자</Text>
+          <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>
+            {paper?.status === 'active'
+              ? `보유 ${paper.positions?.length ?? 0}종목 · 원금 ${usd(paper.initial!)}`
+              : '금액을 정하면 서버가 전망 좋은 종목에 가상으로 투자해요'}
+          </Text>
+        </View>
+        {paper?.status === 'active' ? (
+          <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
+            <Text style={{ color: theme.text, fontWeight: '700' }}>{usd(paper.value!)}</Text>
+            <Text style={{ color: dirColor(theme, paper.pnl!), fontSize: 12, fontWeight: '600' }}>{signedPct(paper.pnlPercent)}</Text>
+          </View>
+        ) : null}
+        <Text style={{ color: theme.subtext, fontSize: 20, fontWeight: '700' }}>›</Text>
       </Pressable>
 
       <View style={styles.sectionHead}>

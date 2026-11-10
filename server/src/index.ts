@@ -1,11 +1,12 @@
-import { createServer, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 
 import { fileURLToPath } from 'node:url';
 
 import { analyze, TICKER_RE } from './analyze.ts';
+import { InvalidAmountError, PaperTrader } from './paper.ts';
 import { Recommender } from './recommend.ts';
 import { ReportStore, summarize } from './reports.ts';
-import { search } from './sources/yahoo.ts';
+import { getPrice, search } from './sources/yahoo.ts';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA_FILE = process.env.DATA_FILE ?? fileURLToPath(new URL('../data/reports.json', import.meta.url));
@@ -16,6 +17,7 @@ const AUTO_REFRESH_CHECK_MS = 10 * 60_000;
 // How often the "rising outlook" ranking is rebuilt (0 = only on request).
 const RECOMMEND_HOURS = Number(process.env.RECOMMEND_HOURS ?? 12);
 const RECOMMEND_FILE = process.env.RECOMMEND_FILE ?? fileURLToPath(new URL('../data/recommendations.json', import.meta.url));
+const PAPER_FILE = process.env.PAPER_FILE ?? fileURLToPath(new URL('../data/portfolio.json', import.meta.url));
 const HOUR = 3_600_000;
 
 const reports = new ReportStore(DATA_FILE, analyze);
@@ -29,6 +31,30 @@ const recommender = new Recommender(
   },
   () => reports.list().map((r) => r.ticker),
 );
+
+const trader = new PaperTrader(PAPER_FILE, { ranking: () => recommender.ranking(), quote: getPrice });
+
+/** Rebuilds the ranking, then lets the paper portfolio act on it right away. */
+function scanAndTrade() {
+  recommender
+    .scan()
+    .then(() => trader.tick())
+    .catch((e) => console.error('recommend: scan crashed', e));
+}
+
+async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > 10_000) throw new Error('body too large');
+  }
+  try {
+    const v = JSON.parse(body || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, {
@@ -66,8 +92,30 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/recommendations') {
       if (req.method === 'GET') return send(res, 200, recommender.get());
       if (req.method === 'POST') {
-        recommender.scan().catch((e) => console.error('recommend: scan crashed', e));
+        scanAndTrade();
         return send(res, 202, recommender.get());
+      }
+      return send(res, 405, { error: '지원하지 않는 메서드입니다.' });
+    }
+
+    if (url.pathname === '/api/paper') {
+      if (req.method === 'GET') return send(res, 200, trader.get());
+      if (req.method === 'POST') {
+        const amount = Number((await readJson(req)).amount);
+        try {
+          await trader.start(amount);
+        } catch (e) {
+          if (e instanceof InvalidAmountError) return send(res, 400, { error: e.message });
+          throw e;
+        }
+        // Buy now if the market is open and a ranking exists; otherwise build one first.
+        if (recommender.isStale(RECOMMEND_HOURS > 0 ? RECOMMEND_HOURS * HOUR : 24 * HOUR)) scanAndTrade();
+        else await trader.tick().catch((e) => console.error('paper: tick failed', e));
+        return send(res, 201, trader.get());
+      }
+      if (req.method === 'DELETE') {
+        await trader.stop();
+        return send(res, 204, null);
       }
       return send(res, 405, { error: '지원하지 않는 메서드입니다.' });
     }
@@ -94,14 +142,15 @@ const server = createServer(async (req, res) => {
 
 await reports.load();
 await recommender.load();
+await trader.load();
 const tick = () => {
   if (AUTO_REFRESH_HOURS > 0) {
     const queued = reports.refreshStale(AUTO_REFRESH_HOURS * HOUR);
     if (queued.length) console.log(`auto-refresh: ${queued.join(', ')}`);
   }
-  if (RECOMMEND_HOURS > 0 && recommender.isStale(RECOMMEND_HOURS * HOUR)) {
-    recommender.scan().catch((e) => console.error('recommend: scan crashed', e));
-  }
+  if (RECOMMEND_HOURS > 0 && recommender.isStale(RECOMMEND_HOURS * HOUR)) scanAndTrade();
+  // Values the paper portfolio and trades on a new ranking (only while the market is open).
+  trader.tick().catch((e) => console.error('paper: tick failed', e));
 };
 tick();
 setInterval(tick, AUTO_REFRESH_CHECK_MS).unref();

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import type { Recommendations, Report, ReportSummary, SearchResult } from './types';
+import type { Portfolio, Recommendations, Report, ReportSummary, SearchResult } from './types';
 
 // Android emulators reach the host machine at 10.0.2.2. On a real phone set
 // EXPO_PUBLIC_API_URL in .env to your computer's LAN address (see .env.example).
@@ -11,22 +11,27 @@ export class ApiError extends Error {}
 
 export class NotFoundError extends ApiError {}
 
-async function call<T>(path: string, { method = 'GET', signal }: { method?: string; signal?: AbortSignal } = {}): Promise<T> {
+async function call<T>(
+  path: string,
+  { method = 'GET', signal, body }: { method?: string; signal?: AbortSignal; body?: unknown } = {},
+): Promise<T> {
   let res: Response;
   try {
     // Skips the interstitial page tunnels like ngrok can show; other hosts ignore the header.
-    res = await fetch(`${API_URL}${path}`, { method, signal, headers: { 'ngrok-skip-browser-warning': '1' } });
+    const headers: Record<string, string> = { 'ngrok-skip-browser-warning': '1' };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    res = await fetch(`${API_URL}${path}`, { method, signal, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   } catch (e) {
     if (signal?.aborted) throw e;
     throw new ApiError(`서버(${API_URL})에 연결할 수 없습니다. 서버가 실행 중인지, 주소가 맞는지 확인해 주세요.`);
   }
   if (res.status === 204) return undefined as T;
-  const body = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
-  if (!res.ok || !body) {
-    const msg = body?.error ?? `요청에 실패했습니다 (${res.status}).`;
+  const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!res.ok || !data) {
+    const msg = data?.error ?? `요청에 실패했습니다 (${res.status}).`;
     throw res.status === 404 ? new NotFoundError(msg) : new ApiError(msg);
   }
-  return body;
+  return data;
 }
 
 const reportPath = (ticker: string) => `/api/reports/${encodeURIComponent(ticker)}`;
@@ -60,6 +65,19 @@ export function fetchRecommendations(signal?: AbortSignal) {
 /** Starts a new ranking scan in the background (joins the running one if any). */
 export function rescanRecommendations() {
   return call<Recommendations>('/api/recommendations', { method: 'POST' });
+}
+
+export function fetchPortfolio(signal?: AbortSignal) {
+  return call<Portfolio>('/api/paper', { signal });
+}
+
+/** Starts a new paper portfolio with `amount` USD, replacing any existing one. */
+export function startPortfolio(amount: number) {
+  return call<Portfolio>('/api/paper', { method: 'POST', body: { amount } });
+}
+
+export function stopPortfolio() {
+  return call<void>('/api/paper', { method: 'DELETE' });
 }
 
 export async function searchTickers(q: string, signal?: AbortSignal) {

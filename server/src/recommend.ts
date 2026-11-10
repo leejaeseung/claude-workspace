@@ -99,6 +99,11 @@ export class Recommender {
     };
   }
 
+  /** The whole last scan, best first — what the paper trader acts on. */
+  ranking(): { scannedAt: string | null; entries: Recommendation[] } {
+    return { scannedAt: this.saved.scannedAt, entries: rank(this.saved.entries, Infinity) };
+  }
+
   /** True when the last completed scan is older than `maxAgeMs` (or there was none). */
   isStale(maxAgeMs: number, now = Date.now()): boolean {
     return !this.saved.scannedAt || now - Date.parse(this.saved.scannedAt) >= maxAgeMs;

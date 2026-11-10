@@ -219,3 +219,70 @@ export interface Recommendations {
   failed: string[]; // tickers that could not be analyzed in the last scan
   items: Recommendation[]; // top N by score
 }
+
+/** A stock the paper portfolio currently holds, valued at the latest price. */
+export interface PaperPosition {
+  ticker: string;
+  name: string;
+  shares: number; // fractional shares allowed
+  avgCost: number; // per share, including the buy fee
+  price: number; // latest price
+  value: number;
+  pnl: number; // unrealized, USD
+  pnlPercent: number;
+  weight: number; // % of the portfolio's total value
+  score: number | null; // outlook score in the latest ranking
+  rank: number | null; // position in the latest ranking
+  boughtAt: string; // ISO
+}
+
+export interface PaperTrade {
+  at: string; // ISO
+  side: 'buy' | 'sell';
+  ticker: string;
+  name: string;
+  shares: number;
+  price: number;
+  amount: number; // shares × price, before the fee
+  fee: number;
+  pnl: number | null; // realized profit on a sell, after fees
+  reason: string;
+}
+
+/** Total value over time, with what the same money in SPY would be worth. */
+export interface PaperPoint {
+  t: number; // unix seconds
+  value: number;
+  benchmark: number | null;
+}
+
+export interface PaperRules {
+  maxPositions: number;
+  buyRank: number; // only buy from the top N of the ranking
+  buyScore: number; // ...with at least this outlook score
+  sellScore: number; // sell when the score falls below this
+  sellRank: number; // ...or the stock drops below this rank
+  stopLoss: number; // %, sell when the position is down this much
+  feeRate: number; // per trade, e.g. 0.0025 = 0.25%
+  cooldownDays: number; // don't buy back a stock this soon after selling it
+}
+
+export interface Portfolio {
+  status: 'none' | 'active';
+  rules: PaperRules;
+  startedAt?: string;
+  initial?: number;
+  cash?: number;
+  value?: number; // cash + positions
+  pnl?: number;
+  pnlPercent?: number;
+  realizedPnl?: number;
+  fees?: number;
+  benchmarkPercent?: number | null; // SPY over the same period
+  marketOpen?: boolean;
+  markedAt?: string | null; // last time prices were updated
+  lastRebalanceAt?: string | null;
+  positions?: PaperPosition[];
+  trades?: PaperTrade[]; // newest first
+  history?: PaperPoint[];
+}
