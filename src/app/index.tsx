@@ -245,6 +245,16 @@ export default function HomeScreen() {
         <Text style={[styles.notice, { color: notice.error ? theme.down : theme.subtext }]}>{notice.text}</Text>
       ) : null}
 
+      <Pressable
+        onPress={() => router.push('/recommend')}
+        style={({ pressed }) => [styles.reco, { backgroundColor: theme.upSoft, opacity: pressed ? 0.7 : 1 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: theme.up, fontWeight: '800', fontSize: 16 }}>▲ 상승 전망 TOP 10</Text>
+          <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>미국 대형주 60여 개 중 방향성 점수가 높은 종목</Text>
+        </View>
+        <Text style={{ color: theme.up, fontSize: 20, fontWeight: '700' }}>›</Text>
+      </Pressable>
+
       <View style={styles.sectionHead}>
         <Text style={[styles.section, { color: theme.text }]}>분석 목록</Text>
         {reports.length > 0 ? (
@@ -302,6 +312,7 @@ const styles = StyleSheet.create({
   result: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
   resultTicker: { width: 64, fontWeight: '700', fontSize: 15 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  reco: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, marginTop: 16 },
   sorts: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   sort: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },

@@ -41,7 +41,7 @@ async function settle<T>(name: string, p: Promise<T>) {
   }
 }
 
-export async function analyze(ticker: string): Promise<Analysis> {
+export async function analyze(ticker: string, { translate = true }: { translate?: boolean } = {}): Promise<Analysis> {
   // Price history is required (it also verifies the ticker is a US listing); everything else is best-effort.
   const history = await getHistory(ticker);
   const sym = history.quote.ticker;
@@ -62,7 +62,9 @@ export async function analyze(ticker: string): Promise<Analysis> {
   ]);
 
   // Best-effort: news still shows in English if translation fails.
-  const translation = await settle('Google 번역', translateToKorean(news.map((n) => n.title)));
+  const translation = translate
+    ? await settle('Google 번역', translateToKorean(news.map((n) => n.title)))
+    : { name: 'Google 번역', ok: false as const, error: '건너뜀' };
   if (translation.ok) news.forEach((n, i) => (n.titleKo = translation.value[i]));
 
   const outlook = buildOutlook(history.quote, technicals, fundamentals, news);

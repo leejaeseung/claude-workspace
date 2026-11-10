@@ -3,6 +3,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 import { analyze, TICKER_RE } from './analyze.ts';
+import { Recommender } from './recommend.ts';
 import { ReportStore, summarize } from './reports.ts';
 import { search } from './sources/yahoo.ts';
 
@@ -12,8 +13,22 @@ const DATA_FILE = process.env.DATA_FILE ?? fileURLToPath(new URL('../data/report
 // Saved reports older than this are collected again automatically (0 turns it off).
 const AUTO_REFRESH_HOURS = Number(process.env.AUTO_REFRESH_HOURS ?? 6);
 const AUTO_REFRESH_CHECK_MS = 10 * 60_000;
+// How often the "rising outlook" ranking is rebuilt (0 = only on request).
+const RECOMMEND_HOURS = Number(process.env.RECOMMEND_HOURS ?? 12);
+const RECOMMEND_FILE = process.env.RECOMMEND_FILE ?? fileURLToPath(new URL('../data/recommendations.json', import.meta.url));
+const HOUR = 3_600_000;
 
 const reports = new ReportStore(DATA_FILE, analyze);
+const recommender = new Recommender(
+  RECOMMEND_FILE,
+  async (ticker) => {
+    // Reuse a recent full report instead of crawling the same ticker twice; skip translation for the rest.
+    const a = reports.get(ticker)?.analysis;
+    if (a && Date.now() - Date.parse(a.generatedAt) < 6 * HOUR) return a;
+    return analyze(ticker, { translate: false });
+  },
+  () => reports.list().map((r) => r.ticker),
+);
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, {
@@ -48,6 +63,15 @@ const server = createServer(async (req, res) => {
       return send(res, 405, { error: '지원하지 않는 메서드입니다.' });
     }
 
+    if (url.pathname === '/api/recommendations') {
+      if (req.method === 'GET') return send(res, 200, recommender.get());
+      if (req.method === 'POST') {
+        recommender.scan().catch((e) => console.error('recommend: scan crashed', e));
+        return send(res, 202, recommender.get());
+      }
+      return send(res, 405, { error: '지원하지 않는 메서드입니다.' });
+    }
+
     const m = url.pathname.match(/^\/api\/reports\/([^/]+)$/);
     if (m) {
       const ticker = decodeURIComponent(m[1]).trim().toUpperCase();
@@ -69,12 +93,16 @@ const server = createServer(async (req, res) => {
 });
 
 await reports.load();
-if (AUTO_REFRESH_HOURS > 0) {
-  const tick = () => {
-    const queued = reports.refreshStale(AUTO_REFRESH_HOURS * 3_600_000);
+await recommender.load();
+const tick = () => {
+  if (AUTO_REFRESH_HOURS > 0) {
+    const queued = reports.refreshStale(AUTO_REFRESH_HOURS * HOUR);
     if (queued.length) console.log(`auto-refresh: ${queued.join(', ')}`);
-  };
-  tick();
-  setInterval(tick, AUTO_REFRESH_CHECK_MS).unref();
-}
+  }
+  if (RECOMMEND_HOURS > 0 && recommender.isStale(RECOMMEND_HOURS * HOUR)) {
+    recommender.scan().catch((e) => console.error('recommend: scan crashed', e));
+  }
+};
+tick();
+setInterval(tick, AUTO_REFRESH_CHECK_MS).unref();
 server.listen(PORT, '0.0.0.0', () => console.log(`stock-app server listening on http://0.0.0.0:${PORT}`));

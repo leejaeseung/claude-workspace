@@ -164,3 +164,31 @@ export interface ReportSnapshot {
 export interface Report extends ReportSummary {
   analysis: Analysis | null;
 }
+
+/** One ranked candidate in the "rising outlook" list. */
+export interface Recommendation {
+  ticker: string;
+  name: string;
+  price: number;
+  changePercent: number;
+  score: number; // outlook score -100..100
+  direction: Direction;
+  confidence: Outlook['confidence'];
+  shortScore: number;
+  midScore: number;
+  headline: string;
+  reasons: string[]; // strongest bullish signals, e.g. "200일 이동평균 대비 +12.3%"
+  risks: string[]; // strongest bearish signals
+  targetUpside: number | null; // %
+  sector: string | null;
+  generatedAt: string; // ISO, when this ticker was analyzed
+}
+
+export interface Recommendations {
+  status: 'idle' | 'scanning';
+  progress: { done: number; total: number } | null; // while scanning
+  scannedAt: string | null; // ISO, last completed scan
+  scanned: number; // tickers ranked in the last scan
+  failed: string[]; // tickers that could not be analyzed in the last scan
+  items: Recommendation[]; // top N by score
+}

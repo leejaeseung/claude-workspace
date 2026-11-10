@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import type { Report, ReportSummary, SearchResult } from './types';
+import type { Recommendations, Report, ReportSummary, SearchResult } from './types';
 
 // Android emulators reach the host machine at 10.0.2.2. On a real phone set
 // EXPO_PUBLIC_API_URL in .env to your computer's LAN address (see .env.example).
@@ -51,6 +51,15 @@ export async function listReports(signal?: AbortSignal) {
 /** Queues a re-collection of every saved ticker. */
 export async function refreshAllReports() {
   return call<{ queued: number; reports: ReportSummary[] }>('/api/reports', { method: 'POST' });
+}
+
+export function fetchRecommendations(signal?: AbortSignal) {
+  return call<Recommendations>('/api/recommendations', { signal });
+}
+
+/** Starts a new ranking scan in the background (joins the running one if any). */
+export function rescanRecommendations() {
+  return call<Recommendations>('/api/recommendations', { method: 'POST' });
 }
 
 export async function searchTickers(q: string, signal?: AbortSignal) {
