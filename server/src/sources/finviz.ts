@@ -93,6 +93,11 @@ export async function getFinviz(ticker: string): Promise<FinvizData> {
     beta: get('Beta'),
     earningsDate: get('Earnings'),
     earningsAt: parseEarningsDate(get('Earnings')),
+    // "EPS/Sales Surpr." holds both numbers: "6.22% 4.28%".
+    epsSurprise: get('EPS/Sales Surpr.')?.split(/\s+/)[0] ?? null,
+    salesSurprise: get('EPS/Sales Surpr.')?.split(/\s+/)[1] ?? null,
+    epsYoYTtm: get('EPS Y/Y TTM'),
+    salesYoYTtm: get('Sales Y/Y TTM'),
     analystRecom: num(get('Recom')),
     targetPrice: target,
     targetUpside: price && target ? ((target - price) / price) * 100 : null,

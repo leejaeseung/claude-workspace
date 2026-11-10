@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { OutlookCard } from '@/components/OutlookCard';
 import { PriceChart } from '@/components/PriceChart';
-import { MetricsCard, NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
+import { EarningsCard, MetricsCard, NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
 import { fetchReport, NotFoundError } from '@/lib/api';
 import { DIRECTION_LABEL, daysUntil, fmtDate, signed, signedPct, timeAgo, usd } from '@/lib/format';
 import { isPending, POLL_MS, refreshReports, startReport } from '@/lib/reports';
@@ -133,7 +133,8 @@ export default function StockScreen() {
 
   const q = data.quote;
   const color = dirColor(theme, q.change);
-  const earningsAt = data.fundamentals?.earningsAt;
+  // Older reports have no `earnings`; fall back to the raw date. Newer ones show it in the earnings card.
+  const earningsAt = data.earnings ? null : data.fundamentals?.earningsAt;
   // Compare with the collection before this one, if there was one.
   const prev = report?.previous && report.previous.generatedAt !== data.generatedAt ? report.previous : null;
   const prevMove = prev ? ((q.price - prev.price) / prev.price) * 100 : 0;
@@ -189,6 +190,7 @@ export default function StockScreen() {
 
       <OutlookCard outlook={data.outlook} />
       <SummaryCard lines={data.summary} />
+      {data.earnings ? <EarningsCard e={data.earnings} /> : null}
       {data.metrics?.length ? <MetricsCard a={data} metrics={data.metrics} /> : null}
       <SignalsCard signals={data.outlook.signals} />
       <NewsCard a={data} />

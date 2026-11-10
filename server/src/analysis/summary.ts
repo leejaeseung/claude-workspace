@@ -1,4 +1,6 @@
-import type { Fundamentals, NewsItem, Outlook, Quote, Technicals } from '../types.ts';
+import type { EarningsInfo, Fundamentals, NewsItem, Outlook, Quote, Technicals } from '../types.ts';
+import { daysSinceReport, daysToNextReport } from './earnings.ts';
+import { recentEvents } from './events.ts';
 
 const pct = (x: number, d = 1) => `${x >= 0 ? '+' : ''}${x.toFixed(d)}%`;
 const usd = (x: number) => `$${x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -30,7 +32,46 @@ export function keywords(news: NewsItem[], exclude: string[], limit = 6): string
     .map(([w]) => w);
 }
 
-export function buildSummary(q: Quote, t: Technicals, f: Fundamentals | null, news: NewsItem[], o: Outlook): string[] {
+const md = (ymd: string) => `${Number(ymd.slice(5, 7))}월 ${Number(ymd.slice(8, 10))}일`;
+
+/** One line on the last report and the next one, in plain Korean. */
+export function describeReport(e: EarningsInfo, now = Date.now()): string[] {
+  const out: string[] = [];
+  const parts: string[] = [];
+  if (e.epsSurprise != null) parts.push(`EPS는 예상치 대비 ${pct(e.epsSurprise)}`);
+  if (e.salesSurprise != null) parts.push(`매출은 ${pct(e.salesSurprise)}`);
+  const growth = [e.epsGrowth != null && `EPS ${pct(e.epsGrowth)}`, e.salesGrowth != null && `매출 ${pct(e.salesGrowth)}`].filter(Boolean);
+  const age = daysSinceReport(e, now);
+  if (parts.length || growth.length || e.reaction != null) {
+    const when = e.lastDate ? `${e.lastDateEstimated ? '약 ' : ''}${md(e.lastDate)}${age != null ? `, ${age}일 전` : ''}` : '';
+    let s = `최근 실적${when ? `(${when})` : ''}: `;
+    const bits: string[] = [];
+    if (parts.length) bits.push(`${parts.join(', ')} 차이`);
+    if (growth.length) bits.push(`전년 동기 대비 ${growth.join(', ')}`);
+    if (e.reaction != null) bits.push(`발표 직후 주가 ${pct(e.reaction)}, 이후 누적 ${pct(e.sinceReport ?? e.reaction)}`);
+    s += bits.join(' / ');
+    out.push(`${s}.`);
+  }
+  const toNext = daysToNextReport(e, now);
+  if (e.nextDate && toNext != null) {
+    const when = e.timing === 'AMC' ? ' 장 마감 후' : e.timing === 'BMO' ? ' 장 시작 전' : '';
+    out.push(
+      toNext <= 7
+        ? `다음 실적 발표가 ${md(e.nextDate)}${when}(D-${Math.max(0, toNext)})로 임박해 발표 전후 변동성이 커질 수 있습니다.`
+        : `다음 실적 발표: ${md(e.nextDate)}${when} (D-${toNext}).`,
+    );
+  }
+  return out;
+}
+
+export function buildSummary(
+  q: Quote,
+  t: Technicals,
+  f: Fundamentals | null,
+  news: NewsItem[],
+  o: Outlook,
+  earnings: EarningsInfo | null = null,
+): string[] {
   const out: string[] = [];
 
   let price = `${q.name}(${q.ticker})의 현재가는 ${usd(q.price)}로 전일 대비 ${pct(q.changePercent, 2)} 움직였습니다.`;
@@ -83,8 +124,11 @@ export function buildSummary(q: Quote, t: Technicals, f: Fundamentals | null, ne
       if (pe > 0 && fpe > 0) s += fpe < pe ? ' — 선행 P/E가 더 낮아 이익 성장이 기대됩니다' : ' — 선행 P/E가 더 높아 이익 감소가 예상됩니다';
       out.push(`${s}.`);
     }
-    const earn = describeEarnings(f.earningsDate);
-    if (earn) out.push(earn);
+    if (earnings) out.push(...describeReport(earnings));
+    else {
+      const earn = describeEarnings(f.earningsDate);
+      if (earn) out.push(earn);
+    }
   }
 
   const week = news.filter((n) => n.publishedAt && Date.now() - Date.parse(n.publishedAt) < 7 * 86_400_000);
@@ -98,6 +142,8 @@ export function buildSummary(q: Quote, t: Technicals, f: Fundamentals | null, ne
   } else {
     out.push('최근 7일 내 수집된 뉴스가 없습니다.');
   }
+  const ev = recentEvents(news);
+  if (ev.count) out.push(`최근 2주 주요 뉴스 이벤트: ${ev.byLabel.map((b) => `${b.label} ${b.count}건`).join(', ')}.`);
 
   if (t.volatility != null) {
     const lvl = t.volatility >= 60 ? '매우 높은' : t.volatility >= 35 ? '높은' : t.volatility >= 20 ? '보통 수준의' : '낮은';

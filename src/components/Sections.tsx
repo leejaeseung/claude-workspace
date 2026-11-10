@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/Card';
-import { compact, signedPct, timeAgo, usd } from '@/lib/format';
+import { compact, daysUntil, fmtDate, signedPct, timeAgo, usd } from '@/lib/format';
 import { dirColor, useTheme, type Theme } from '@/lib/theme';
-import type { Analysis, MetricEval, MetricRating, NewsItem, Signal } from '@/lib/types';
+import type { Analysis, EarningsInfo, MetricEval, MetricRating, NewsItem, Signal } from '@/lib/types';
 
 export function SummaryCard({ lines }: { lines: string[] }) {
   const theme = useTheme();
@@ -220,6 +220,15 @@ function NewsRow({ n }: { n: NewsItem }) {
       style={({ pressed }) => [styles.news, { borderTopColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
       <View style={[styles.dot, { backgroundColor: dot }]} />
       <View style={{ flex: 1 }}>
+        {n.event ? (
+          <Text
+            style={[
+              styles.eventTag,
+              { color: n.event.effect > 0 ? theme.up : theme.down, backgroundColor: n.event.effect > 0 ? theme.upSoft : theme.downSoft },
+            ]}>
+            {n.event.label}
+          </Text>
+        ) : null}
         <Text style={{ color: theme.text, lineHeight: 20 }}>{n.titleKo || n.title}</Text>
         {n.titleKo ? (
           <Text style={{ color: theme.subtext, fontSize: 12, lineHeight: 17, marginTop: 2 }} numberOfLines={2}>
@@ -235,16 +244,18 @@ function NewsRow({ n }: { n: NewsItem }) {
   );
 }
 
-type NewsFilter = 'all' | 'positive' | 'negative';
+type NewsFilter = 'all' | 'event' | 'positive' | 'negative';
 
 export function NewsCard({ a }: { a: Analysis }) {
   const theme = useTheme();
   const [filter, setFilter] = useState<NewsFilter>('all');
   const [limit, setLimit] = useState(10);
-  const list = a.news.filter((n) => filter === 'all' || n.sentimentLabel === filter);
+  const list = a.news.filter((n) => filter === 'all' || (filter === 'event' ? !!n.event : n.sentimentLabel === filter));
   const s = a.newsSentiment;
+  const events = a.news.filter((n) => n.event).length;
   const tabs: [NewsFilter, string][] = [
     ['all', `전체 ${a.news.length}`],
+    ...(events ? ([['event', `주요 이벤트 ${events}`]] as [NewsFilter, string][]) : []),
     ['positive', `긍정 ${s.positive}`],
     ['negative', `부정 ${s.negative}`],
   ];
@@ -264,7 +275,7 @@ export function NewsCard({ a }: { a: Analysis }) {
         ))}
       </View>
       <Text style={{ color: theme.subtext, fontSize: 12, marginBottom: 4 }}>
-        제목은 자동 번역했고 분위기는 영어 원문 단어로 분류했어요. 누르면 원문 기사가 열립니다.
+        제목은 자동 번역했고, 분위기와 이벤트(의견·목표가 변경, 실적, 소송 등)는 영어 원문으로 판별했어요. 누르면 원문 기사가 열립니다.
       </Text>
       {list.slice(0, limit).map((n, i) => (
         <NewsRow key={`${i}-${n.url}`} n={n} />
@@ -275,6 +286,58 @@ export function NewsCard({ a }: { a: Analysis }) {
           <Text style={{ color: theme.accent, fontWeight: '600' }}>더 보기</Text>
         </Pressable>
       )}
+    </Card>
+  );
+}
+
+function Fact({ label, value, color }: { label: string; value: string; color?: string }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.fact}>
+      <Text style={{ color: theme.subtext, fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: color ?? theme.text, fontWeight: '700', fontSize: 15, marginTop: 2 }}>{value}</Text>
+    </View>
+  );
+}
+
+/** The last quarterly report: surprise vs. consensus, growth, and the market's reaction. */
+export function EarningsCard({ e }: { e: EarningsInfo }) {
+  const theme = useTheme();
+  const tone = (x: number | null) => (x == null ? theme.subtext : dirColor(theme, x));
+  const when = e.timing === 'AMC' ? ' 장 마감 후' : e.timing === 'BMO' ? ' 장 시작 전' : '';
+  const next = e.nextDate ? daysUntil(e.nextDate) : null;
+  const facts: [string, number | null][] = [
+    ['EPS 서프라이즈', e.epsSurprise],
+    ['매출 서프라이즈', e.salesSurprise],
+    ['EPS 성장(YoY)', e.epsGrowth],
+    ['매출 성장(YoY)', e.salesGrowth],
+    ['발표 직후 주가', e.reaction],
+    ['발표 후 누적', e.sinceReport],
+  ];
+  return (
+    <Card title="최근 실적">
+      {e.lastDate ? (
+        <Text style={{ color: theme.subtext, fontSize: 12, marginBottom: 6 }}>
+          {e.lastDateEstimated ? `약 ${fmtDate(e.lastDate)} 발표 (거래량으로 추정)` : `${fmtDate(e.lastDate)}${e.nextDate ? '' : when} 발표`}
+        </Text>
+      ) : null}
+      <View style={styles.facts}>
+        {facts
+          .filter(([, v]) => v != null)
+          .map(([label, v]) => (
+            <Fact key={label} label={label} value={signedPct(v, 1)} color={tone(v)} />
+          ))}
+      </View>
+      {e.nextDate && next != null ? (
+        <Text style={{ color: next <= 7 ? theme.accent : theme.subtext, fontSize: 13, fontWeight: '600', marginTop: 8 }}>
+          다음 실적 발표 {fmtDate(e.nextDate)}
+          {when} · {next > 0 ? `D-${next}` : 'D-day'}
+          {next <= 7 ? ' — 발표 전후로 변동성이 커질 수 있어요' : ''}
+        </Text>
+      ) : null}
+      <Text style={{ color: theme.subtext, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+        서프라이즈는 애널리스트 예상치 대비, 성장은 전년 같은 분기 대비예요. 이 값들은 방향성 점수에 반영돼요.
+      </Text>
     </Card>
   );
 }
@@ -319,6 +382,9 @@ const styles = StyleSheet.create({
   metric: { paddingVertical: 10 },
   metricHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  eventTag: { alignSelf: 'flex-start', fontSize: 11, fontWeight: '700', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1, marginBottom: 3, overflow: 'hidden' },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 10 },
+  fact: { width: '33.33%' },
   groupTitle: { fontSize: 13, fontWeight: '700', marginTop: 8, marginBottom: 2 },
   foot: { fontSize: 12, lineHeight: 17, marginTop: 4 },
 });

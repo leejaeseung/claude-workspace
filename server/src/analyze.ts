@@ -1,4 +1,6 @@
 import { computeTechnicals } from './analysis/indicators.ts';
+import { buildEarnings } from './analysis/earnings.ts';
+import { companyTerms, detectEvent, mentionsCompany } from './analysis/events.ts';
 import { evaluateMetrics } from './analysis/metrics.ts';
 import { buildOutlook } from './analysis/outlook.ts';
 import { headlineSentiment, label } from './analysis/sentiment.ts';
@@ -26,7 +28,7 @@ export function mergeNews(lists: RawNews[][], limit = 40): NewsItem[] {
     if (!key || seen.has(key)) continue;
     seen.add(key);
     const s = headlineSentiment(n.title);
-    merged.push({ ...n, titleKo: null, sentiment: Math.round(s * 100) / 100, sentimentLabel: label(s) });
+    merged.push({ ...n, titleKo: null, sentiment: Math.round(s * 100) / 100, sentimentLabel: label(s), event: null });
   }
   return merged
     .sort((a, b) => (b.publishedAt ? Date.parse(b.publishedAt) : 0) - (a.publishedAt ? Date.parse(a.publishedAt) : 0))
@@ -61,14 +63,18 @@ export async function analyze(ticker: string, { translate = true }: { translate?
     googleNews.ok ? googleNews.value : [],
   ]);
 
+  const terms = companyTerms(sym, history.quote.name);
+  for (const n of news) n.event = mentionsCompany(n.title, terms) ? detectEvent(n.title) : null;
+
   // Best-effort: news still shows in English if translation fails.
   const translation = translate
     ? await settle('Google 번역', translateToKorean(news.map((n) => n.title)))
     : { name: 'Google 번역', ok: false as const, error: '건너뜀' };
   if (translation.ok) news.forEach((n, i) => (n.titleKo = translation.value[i]));
 
-  const outlook = buildOutlook(history.quote, technicals, fundamentals, news);
-  const summary = buildSummary(history.quote, technicals, fundamentals, news, outlook);
+  const earnings = buildEarnings(fundamentals, history.points, history.volumes);
+  const outlook = buildOutlook(history.quote, technicals, fundamentals, news, earnings);
+  const summary = buildSummary(history.quote, technicals, fundamentals, news, outlook, earnings);
 
   const counts = { positive: 0, negative: 0, neutral: 0 };
   for (const n of news) counts[n.sentimentLabel]++;
@@ -79,6 +85,7 @@ export async function analyze(ticker: string, { translate = true }: { translate?
     technicals: tech,
     fundamentals,
     metrics: evaluateMetrics(history.quote, tech, fundamentals),
+    earnings,
     outlook,
     summary,
     news,

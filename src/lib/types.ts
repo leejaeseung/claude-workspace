@@ -59,6 +59,10 @@ export interface Fundamentals {
   beta: string | null;
   earningsDate: string | null; // raw Finviz text, e.g. "Nov 17 AMC"
   earningsAt?: string | null; // YYYY-MM-DD, the occurrence of earningsDate nearest to collection time
+  epsSurprise?: string | null; // last reported quarter vs. consensus, e.g. "6.22%"
+  salesSurprise?: string | null;
+  epsYoYTtm?: string | null; // trailing twelve months vs. a year earlier
+  salesYoYTtm?: string | null;
   analystRecom: number | null; // 1 = Strong Buy … 5 = Sell
   targetPrice: number | null;
   targetUpside: number | null; // %
@@ -72,6 +76,28 @@ export interface NewsItem {
   publishedAt: string | null; // ISO
   sentiment: number; // -1..1
   sentimentLabel: 'positive' | 'neutral' | 'negative';
+  event?: NewsEvent | null; // a concrete event recognised in the headline
+}
+
+/** A market-moving event recognised in a headline (analyst action, guidance, earnings, legal…). */
+export interface NewsEvent {
+  key: string;
+  label: string; // Korean, e.g. "목표가 상향"
+  effect: number; // -1..1, positive = bullish
+}
+
+/** The latest quarterly report and how the market took it. */
+export interface EarningsInfo {
+  nextDate: string | null; // YYYY-MM-DD, only when the next report is announced
+  lastDate: string | null; // YYYY-MM-DD, the last report (estimated from trading volume when not known)
+  lastDateEstimated: boolean;
+  timing: 'BMO' | 'AMC' | null; // before market open / after market close
+  epsSurprise: number | null; // %
+  salesSurprise: number | null; // %
+  epsGrowth: number | null; // % quarter vs. same quarter a year earlier
+  salesGrowth: number | null; // %
+  reaction: number | null; // % price move on the first session after the report
+  sinceReport: number | null; // % from the pre-report close to now
 }
 
 export interface Signal {
@@ -117,6 +143,7 @@ export interface Analysis {
   technicals: Technicals;
   fundamentals: Fundamentals | null;
   metrics?: MetricEval[]; // absent in reports saved before metric ratings existed
+  earnings?: EarningsInfo | null; // absent in older reports
   outlook: Outlook;
   summary: string[];
   news: NewsItem[];
