@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { deleteReport, listReports, requestReport } from './api';
+import { deleteReport, listReports, refreshAllReports, requestReport } from './api';
 import type { ReportStatus, ReportSummary } from './types';
 
 export const POLL_MS = 3000;
@@ -36,6 +36,23 @@ export async function startReport(ticker: string) {
   const r = await requestReport(ticker.trim().toUpperCase());
   upsert(r);
   return r;
+}
+
+/** Re-collects every saved ticker; returns how many were queued. */
+export async function startAllReports() {
+  const { queued, reports } = await refreshAllReports();
+  current = reports;
+  emit();
+  return queued;
+}
+
+export type SortKey = 'recent' | 'change' | 'score';
+export const SORT_LABEL: Record<SortKey, string> = { recent: '최근 요청', change: '등락률', score: '전망 점수' };
+
+export function sortReports(list: ReportSummary[], key: SortKey): ReportSummary[] {
+  if (key === 'recent') return list;
+  const v = (r: ReportSummary) => (key === 'change' ? r.changePercent : r.score) ?? -Infinity;
+  return [...list].sort((a, b) => v(b) - v(a));
 }
 
 export async function removeReport(ticker: string) {

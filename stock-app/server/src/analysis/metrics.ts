@@ -101,6 +101,18 @@ export function evaluateMetrics(q: Quote, t: Technicals, f: Fundamentals | null)
   growth('epsQoQ', 'EPS 성장 (전년 동기 대비)', f?.epsQoQ, '주당순이익', 10);
   growth('epsNextY', '내년 EPS 성장 전망', f?.epsNextY, '예상 주당순이익', 15);
 
+  const surprise = (key: string, label: string, raw: string | null | undefined, what: string, margin: number) => {
+    const x = num(raw);
+    if (x == null) return;
+    add('성장성', key, label, raw!, ...rb(band(x, [
+      [-margin, 'bad', `직전 분기 ${what}이 예상치를 ${margin}% 넘게 밑돌았어요.`],
+      [margin, 'neutral', `직전 분기 ${what}이 예상치와 비슷했어요 (±${margin}%).`],
+      [Infinity, 'good', `직전 분기 ${what}이 예상치를 ${margin}% 넘게 웃돌았어요.`],
+    ])));
+  };
+  surprise('epsSurprise', 'EPS 서프라이즈 (예상 대비)', f?.epsSurprise, '주당순이익', 3);
+  surprise('salesSurprise', '매출 서프라이즈 (예상 대비)', f?.salesSurprise, '매출', 1);
+
   // ── 수익성
   if (eps != null)
     add('수익성', 'eps', 'EPS (최근 12개월)', f!.epsTtm!, eps > 0 ? 'good' : 'bad', eps > 0 ? '흑자를 내고 있어요.' : '적자 상태예요.');

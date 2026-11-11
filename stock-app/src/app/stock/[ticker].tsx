@@ -1,17 +1,42 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/Card';
 import { OutlookCard } from '@/components/OutlookCard';
 import { PriceChart } from '@/components/PriceChart';
-import { MetricsCard, NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
+import { EarningsCard, MetricsCard, NewsCard, ReturnsRow, SignalsCard, SourcesFooter, StatsCard, SummaryCard } from '@/components/Sections';
 import { fetchReport, NotFoundError } from '@/lib/api';
-import { signed, signedPct, timeAgo, usd } from '@/lib/format';
+import { DIRECTION_LABEL, daysUntil, fmtDate, signed, signedPct, timeAgo, usd } from '@/lib/format';
 import { isPending, POLL_MS, refreshReports, startReport } from '@/lib/reports';
 import { dirColor, useTheme } from '@/lib/theme';
-import type { Report } from '@/lib/types';
+import type { Analysis, Report } from '@/lib/types';
+
+/** Plain-text digest for the share sheet (messengers, notes). */
+function shareText(a: Analysis): string {
+  const q = a.quote;
+  const o = a.outlook;
+  const lines = [
+    `[${q.ticker}] ${q.name}`,
+    `${usd(q.price)} (${signedPct(q.changePercent)}) · ${new Date(a.generatedAt).toLocaleString('ko-KR')} 기준`,
+    `전망: ${DIRECTION_LABEL[o.direction]} 우세 (점수 ${o.score > 0 ? '+' : ''}${o.score}) — ${o.headline}`,
+    '',
+    ...a.summary.map((l) => `• ${l}`),
+  ];
+  const good = a.metrics?.filter((m) => m.rating === 'good').map((m) => m.label) ?? [];
+  const bad = a.metrics?.filter((m) => m.rating === 'bad').map((m) => m.label) ?? [];
+  if (good.length || bad.length) lines.push('', `좋음: ${good.join(', ') || '-'}`, `나쁨: ${bad.join(', ') || '-'}`);
+  lines.push('', a.disclaimer);
+  return lines.join('\n');
+}
+
+function earningsText(ymd: string): string {
+  const n = daysUntil(ymd);
+  if (n > 0) return `실적 발표 ${fmtDate(ymd)} (D-${n})`;
+  if (n === 0) return `오늘 실적 발표 (${fmtDate(ymd)})`;
+  return `최근 실적 발표 ${fmtDate(ymd)} (${-n}일 전)`;
+}
 
 export default function StockScreen() {
   const { ticker: raw } = useLocalSearchParams<{ ticker: string }>();
@@ -60,8 +85,21 @@ export default function StockScreen() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
-  const title = <Stack.Screen options={{ title: ticker }} />;
   const data = report?.analysis ?? null;
+  const title = (
+    <Stack.Screen
+      options={{
+        title: ticker,
+        headerRight: data
+          ? () => (
+              <Pressable onPress={() => Share.share({ message: shareText(data) }).catch(() => {})} hitSlop={10}>
+                <Text style={{ color: theme.accent, fontSize: 16, fontWeight: '600' }}>공유</Text>
+              </Pressable>
+            )
+          : undefined,
+      }}
+    />
+  );
 
   if (!data && (pending || (!report && !error))) {
     return (
@@ -95,6 +133,11 @@ export default function StockScreen() {
 
   const q = data.quote;
   const color = dirColor(theme, q.change);
+  // Older reports have no `earnings`; fall back to the raw date. Newer ones show it in the earnings card.
+  const earningsAt = data.earnings ? null : data.fundamentals?.earningsAt;
+  // Compare with the collection before this one, if there was one.
+  const prev = report?.previous && report.previous.generatedAt !== data.generatedAt ? report.previous : null;
+  const prevMove = prev ? ((q.price - prev.price) / prev.price) * 100 : 0;
 
   return (
     <ScrollView
@@ -118,10 +161,36 @@ export default function StockScreen() {
           <PriceChart points={data.chart} />
         </View>
         <ReturnsRow a={data} />
+        {earningsAt ? <Text style={[styles.earnings, { color: theme.accent }]}>{earningsText(earningsAt)}</Text> : null}
       </Card>
+
+      {prev ? (
+        <Card title={`지난 수집 대비 (${timeAgo(prev.generatedAt)})`}>
+          <View style={styles.prevRow}>
+            <Text style={{ color: theme.subtext }}>가격</Text>
+            <Text style={{ color: theme.text }}>
+              {usd(prev.price)} → {usd(q.price)} <Text style={{ color: dirColor(theme, prevMove) }}>({signedPct(prevMove)})</Text>
+            </Text>
+          </View>
+          <View style={styles.prevRow}>
+            <Text style={{ color: theme.subtext }}>전망</Text>
+            <Text style={{ color: theme.text }}>
+              <Text style={{ color: dirColor(theme, prev.direction) }}>{DIRECTION_LABEL[prev.direction]}</Text> →{' '}
+              <Text style={{ color: dirColor(theme, data.outlook.direction), fontWeight: '700' }}>
+                {DIRECTION_LABEL[data.outlook.direction]}
+              </Text>
+              {'  '}
+              <Text style={{ color: theme.subtext }}>
+                점수 {signed(prev.score, 0)} → {signed(data.outlook.score, 0)}
+              </Text>
+            </Text>
+          </View>
+        </Card>
+      ) : null}
 
       <OutlookCard outlook={data.outlook} />
       <SummaryCard lines={data.summary} />
+      {data.earnings ? <EarningsCard e={data.earnings} /> : null}
       {data.metrics?.length ? <MetricsCard a={data} metrics={data.metrics} /> : null}
       <SignalsCard signals={data.outlook.signals} />
       <NewsCard a={data} />
@@ -141,4 +210,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 14 },
   price: { fontSize: 34, fontWeight: '800', marginTop: 4 },
   change: { fontSize: 16, fontWeight: '700', marginTop: 2 },
+  earnings: { fontSize: 13, fontWeight: '600', marginTop: 12 },
+  prevRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
 });

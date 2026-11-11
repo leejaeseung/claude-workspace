@@ -1,13 +1,24 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { searchTickers } from '@/lib/api';
-import { DIRECTION_LABEL, signedPct, timeAgo, usd } from '@/lib/format';
-import { isPending, removeReport, startReport, useReports } from '@/lib/reports';
+import { fetchPortfolio, searchTickers } from '@/lib/api';
+import { DIRECTION_LABEL, earningsBadge, signedPct, timeAgo, usd } from '@/lib/format';
+import {
+  isPending,
+  refreshReports,
+  removeReport,
+  SORT_LABEL,
+  sortReports,
+  startAllReports,
+  startReport,
+  useReports,
+  type SortKey,
+} from '@/lib/reports';
 import { dirColor, useTheme, type Theme } from '@/lib/theme';
-import type { ReportSummary, SearchResult } from '@/lib/types';
+import type { Portfolio, ReportSummary, SearchResult } from '@/lib/types';
 
 const POPULAR = ['AAPL', 'NVDA', 'MSFT', 'TSLA', 'AMZN', 'GOOGL', 'META', 'SPY', 'QQQ'];
 
@@ -34,6 +45,9 @@ function ReportRow({ r, theme, first }: { r: ReportSummary; theme: Theme; first:
   if (pending) sub = hasData ? `새로 수집 중 · 이전 자료 ${timeAgo(r.generatedAt)}` : '자료를 수집하고 있어요';
   else if (r.status === 'error') sub = hasData ? `${r.error} · 이전 자료 보기` : `${r.error} · 눌러서 다시 요청`;
   else sub = `${timeAgo(r.generatedAt)} 수집`;
+  const earnings = earningsBadge(r.earningsAt);
+  // The outlook flipped since the collection before this one.
+  const flipped = r.previous && r.direction && r.previous.direction !== r.direction ? r.previous.direction : null;
 
   return (
     <Pressable
@@ -56,6 +70,18 @@ function ReportRow({ r, theme, first }: { r: ReportSummary; theme: Theme; first:
             <View style={{ flex: 1 }} />
           )}
         </View>
+        {earnings || flipped ? (
+          <View style={styles.tags}>
+            {earnings ? (
+              <Text style={[styles.tag, { color: theme.accent, borderColor: theme.accent }]}>{earnings}</Text>
+            ) : null}
+            {flipped && r.direction ? (
+              <Text style={[styles.tag, { color: dirColor(theme, r.direction), borderColor: dirColor(theme, r.direction) }]}>
+                전망 {DIRECTION_LABEL[flipped]} → {DIRECTION_LABEL[r.direction]}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         <Text style={{ color: r.status === 'error' ? theme.down : theme.subtext, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
           {sub}
         </Text>
@@ -85,6 +111,47 @@ export default function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { reports, loaded, error: listError } = useReports();
+  const [sort, setSort] = useState<SortKey>('recent');
+  const [refreshing, setRefreshing] = useState(false);
+  const sorted = sortReports(reports, sort);
+  const [paper, setPaper] = useState<Portfolio | null>(null);
+
+  // The paper card shows the running result; refresh it whenever home comes back into view.
+  useFocusEffect(
+    useCallback(() => {
+      fetchPortfolio()
+        .then(setPaper)
+        .catch(() => {});
+    }, []),
+  );
+
+  // Remember the chosen sort order between launches.
+  useEffect(() => {
+    AsyncStorage.getItem('reportSort')
+      .then((v) => v && v in SORT_LABEL && setSort(v as SortKey))
+      .catch(() => {});
+  }, []);
+  const changeSort = (k: SortKey) => {
+    setSort(k);
+    AsyncStorage.setItem('reportSort', k).catch(() => {});
+  };
+
+  const pullRefresh = () => {
+    setRefreshing(true);
+    refreshReports().finally(() => setRefreshing(false));
+  };
+
+  const recollectAll = () =>
+    Alert.alert('전체 새로 수집', `목록의 ${reports.length}개 종목을 모두 새로 수집할까요?`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '수집',
+        onPress: () =>
+          startAllReports()
+            .then((n) => setNotice({ text: n ? `${n}개 종목을 새로 수집하고 있어요.` : '이미 모두 수집 중이에요.' }))
+            .catch((e) => setNotice({ text: e instanceof Error ? e.message : String(e), error: true })),
+      },
+    ]);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [query, setQuery] = useState('');
   // Results are tagged with the query they answer, so stale ones are simply ignored.
@@ -135,6 +202,7 @@ export default function HomeScreen() {
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} tintColor={theme.accent} />}
       contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 32 }}>
       <Text style={[styles.lead, { color: theme.subtext }]}>
         미국 주식 티커나 회사 이름으로 분석을 요청하면 서버가 시세·뉴스·재무 지표를 모아 요약하고 주가 방향성을 알려드려요.
@@ -187,7 +255,56 @@ export default function HomeScreen() {
         <Text style={[styles.notice, { color: notice.error ? theme.down : theme.subtext }]}>{notice.text}</Text>
       ) : null}
 
-      <Text style={[styles.section, { color: theme.text }]}>분석 목록</Text>
+      <Pressable
+        onPress={() => router.push('/recommend')}
+        style={({ pressed }) => [styles.reco, { backgroundColor: theme.upSoft, opacity: pressed ? 0.7 : 1 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: theme.up, fontWeight: '800', fontSize: 16 }}>▲ 상승 전망 TOP 10</Text>
+          <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>미국 대형주 60여 개 중 방향성 점수가 높은 종목</Text>
+        </View>
+        <Text style={{ color: theme.up, fontSize: 20, fontWeight: '700' }}>›</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/paper')}
+        style={({ pressed }) => [styles.reco, { marginTop: 8, backgroundColor: theme.card, opacity: pressed ? 0.7 : 1 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16 }}>모의 투자</Text>
+          <Text style={{ color: theme.subtext, fontSize: 12, marginTop: 2 }}>
+            {paper?.status === 'active'
+              ? `보유 ${paper.positions?.length ?? 0}종목 · 원금 ${usd(paper.initial!)}`
+              : '금액을 정하면 서버가 전망 좋은 종목에 가상으로 투자해요'}
+          </Text>
+        </View>
+        {paper?.status === 'active' ? (
+          <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
+            <Text style={{ color: theme.text, fontWeight: '700' }}>{usd(paper.value!)}</Text>
+            <Text style={{ color: dirColor(theme, paper.pnl!), fontSize: 12, fontWeight: '600' }}>{signedPct(paper.pnlPercent)}</Text>
+          </View>
+        ) : null}
+        <Text style={{ color: theme.subtext, fontSize: 20, fontWeight: '700' }}>›</Text>
+      </Pressable>
+
+      <View style={styles.sectionHead}>
+        <Text style={[styles.section, { color: theme.text }]}>분석 목록</Text>
+        {reports.length > 0 ? (
+          <Pressable onPress={recollectAll} disabled={reports.every((r) => isPending(r.status))} hitSlop={8}>
+            <Text style={{ color: theme.accent, fontWeight: '600' }}>전체 새로 수집</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {reports.length > 1 ? (
+        <View style={styles.sorts}>
+          {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+            <Pressable
+              key={k}
+              onPress={() => changeSort(k)}
+              style={[styles.sort, { backgroundColor: sort === k ? theme.accent : theme.input }]}>
+              <Text style={{ color: sort === k ? '#fff' : theme.subtext, fontSize: 12, fontWeight: '600' }}>{SORT_LABEL[k]}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       {listError ? (
         <Text style={[styles.hint, { color: theme.down, marginTop: 0 }]}>{listError}</Text>
       ) : !loaded ? (
@@ -199,11 +316,13 @@ export default function HomeScreen() {
       ) : (
         <>
           <View style={[styles.card, { backgroundColor: theme.card, marginTop: 0 }]}>
-            {reports.map((r, i) => (
+            {sorted.map((r, i) => (
               <ReportRow key={r.ticker} r={r} theme={theme} first={i === 0} />
             ))}
           </View>
-          <Text style={[styles.hint, { color: theme.subtext }]}>길게 누르면 목록에서 지워요.</Text>
+          <Text style={[styles.hint, { color: theme.subtext }]}>
+            길게 누르면 목록에서 지워요. 화면을 당기면 상태를 새로 불러오고, 서버가 오래된 자료는 주기적으로 다시 수집해요.
+          </Text>
         </>
       )}
 
@@ -223,6 +342,11 @@ const styles = StyleSheet.create({
   result: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
   resultTicker: { width: 64, fontWeight: '700', fontSize: 15 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  reco: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 14, marginTop: 16 },
+  sorts: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  sort: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
+  tag: { fontSize: 11, fontWeight: '600', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingHorizontal: 4, overflow: 'hidden' },
   section: { fontSize: 17, fontWeight: '700', marginTop: 24, marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth },

@@ -1,4 +1,6 @@
-import type { Direction, Fundamentals, NewsItem, Outlook, Quote, Signal, Technicals } from '../types.ts';
+import type { Direction, EarningsInfo, Fundamentals, NewsItem, Outlook, Quote, Signal, Technicals } from '../types.ts';
+import { daysSinceReport, daysToNextReport } from './earnings.ts';
+import { recentEvents } from './events.ts';
 
 const clamp = (x: number, lo = -1, hi = 1) => Math.max(lo, Math.min(hi, x));
 const pct = (x: number, digits = 1) => `${x >= 0 ? '+' : ''}${x.toFixed(digits)}%`;
@@ -33,6 +35,8 @@ export function buildOutlook(
   t: Technicals & { macdPrevHist: number | null },
   f: Fundamentals | null,
   news: NewsItem[],
+  earnings: EarningsInfo | null = null,
+  now = Date.now(),
 ): Outlook {
   const p = quote.price;
   const signals: Signal[] = [];
@@ -122,7 +126,64 @@ export function buildOutlook(
       reason: t.return1m >= 0 ? '최근 한 달간 주가가 올랐습니다.' : '최근 한 달간 주가가 내렸습니다.',
     });
   }
-  const ns = recentNewsScore(news);
+  // ── 실적: the surprise and the market's reaction fade over the quarter, so their weight does too.
+  if (earnings) {
+    const age = daysSinceReport(earnings, now);
+    const fresh = age != null && age <= 45;
+    const { epsSurprise: es, salesSurprise: ss } = earnings;
+    if (es != null || ss != null) {
+      const effect = es != null && ss != null ? 0.6 * clamp(es / 10) + 0.4 * clamp(ss / 4) : es != null ? clamp(es / 10) : clamp(ss! / 4);
+      const parts = [es != null && `EPS ${pct(es)}`, ss != null && `매출 ${pct(ss)}`].filter(Boolean).join(' · ');
+      add({
+        key: 'surprise', label: '최근 실적 서프라이즈', value: parts, weight: fresh ? 1.4 : 0.7, horizon: 'mid', effect,
+        reason:
+          effect > 0.15 ? '직전 분기 실적이 시장 예상치를 웃돌았습니다.'
+          : effect < -0.15 ? '직전 분기 실적이 시장 예상치를 밑돌았습니다.'
+          : '직전 분기 실적은 시장 예상치에 대체로 부합했습니다.',
+      });
+    }
+    if (earnings.reaction != null && earnings.sinceReport != null && age != null && age <= 95) {
+      const r = earnings.reaction;
+      const since = earnings.sinceReport;
+      add({
+        key: 'reaction', label: '실적 발표 후 주가 반응', value: `첫날 ${pct(r)} · 이후 누적 ${pct(since)}`,
+        weight: age <= 30 ? 1.2 : 0.7, horizon: age <= 30 ? 'short' : 'mid',
+        effect: 0.6 * clamp(r / 6) + 0.4 * clamp(since / 15),
+        reason:
+          r >= 2 ? '시장이 실적 발표를 호재로 받아들였습니다.'
+          : r <= -2 ? '시장이 실적 발표를 악재로 받아들였습니다.'
+          : '실적 발표에 대한 시장 반응은 크지 않았습니다.',
+      });
+    }
+    if (earnings.epsGrowth != null || earnings.salesGrowth != null) {
+      const eg = earnings.epsGrowth;
+      const sg = earnings.salesGrowth;
+      // EPS growth off a tiny base can be in the thousands of percent, so it is clamped hard.
+      const effect = eg != null && sg != null ? 0.5 * clamp(sg / 25) + 0.5 * clamp(eg / 40) : eg != null ? clamp(eg / 40) : clamp(sg! / 25);
+      add({
+        key: 'growth', label: '분기 실적 성장 (전년 동기 대비)',
+        value: [eg != null && `EPS ${pct(eg)}`, sg != null && `매출 ${pct(sg)}`].filter(Boolean).join(' · '),
+        weight: 1, horizon: 'mid', effect,
+        reason: effect > 0.15 ? '이익과 매출이 1년 전보다 늘고 있습니다.' : effect < -0.15 ? '이익이나 매출이 1년 전보다 줄었습니다.' : '1년 전과 비슷한 실적입니다.',
+      });
+    }
+  }
+
+  // ── 뉴스 이벤트: concrete headlines (analyst actions, guidance, legal…) from the last two weeks.
+  const ev = recentEvents(news, now);
+  if (ev.count > 0) {
+    add({
+      key: 'events', label: '최근 2주 주요 뉴스 이벤트',
+      value: ev.byLabel.slice(0, 3).map((b) => `${b.label} ${b.count}`).join(' · '),
+      weight: 1.3 * Math.min(1, 0.5 + ev.count / 4), horizon: 'short', effect: ev.score,
+      reason:
+        ev.score > 0.1 ? '최근 호재성 뉴스(의견·목표가 상향, 실적 상회 등)가 우세합니다.'
+        : ev.score < -0.1 ? '최근 악재성 뉴스(의견·목표가 하향, 소송 등)가 우세합니다.'
+        : '최근 주요 뉴스의 호재와 악재가 엇갈립니다.',
+    });
+  }
+
+  const ns = recentNewsScore(news, now);
   if (ns.count > 0) {
     // Few headlines → less trust.
     const trust = Math.min(1, ns.count / 8);
@@ -158,6 +219,9 @@ export function buildOutlook(
     Math.abs(score) >= 40 && agreement >= 0.7 ? 'high' : Math.abs(score) >= 20 || agreement >= 0.6 ? 'medium' : 'low';
   if (!horizonsAgree && confidence === 'high') confidence = 'medium';
   if (signals.length < 5) confidence = 'low';
+  // An imminent report can move the price either way regardless of the signals.
+  const toNext = earnings ? daysToNextReport(earnings, now) : null;
+  if (toNext != null && toNext <= 7 && confidence === 'high') confidence = 'medium';
 
   return {
     direction,

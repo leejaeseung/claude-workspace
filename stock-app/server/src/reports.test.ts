@@ -93,3 +93,38 @@ test('remove deletes a report', async () => {
   assert.equal(store.get('NVDA'), undefined);
   assert.equal(store.remove('NVDA'), false);
 });
+
+test('a re-run keeps the previous result as a snapshot', async () => {
+  const file = await tmpFile();
+  let price = 10;
+  const store = new ReportStore(file, async (t) => {
+    const a = fake(t);
+    return { ...a, quote: { ...a.quote, price: price++ }, outlook: { direction: 'up', score: price * 2 } } as Analysis;
+  });
+  store.request('AAPL');
+  await store.idle();
+  assert.equal(store.get('AAPL')!.previous, null, 'nothing to compare on the first run');
+  assert.equal(store.get('AAPL')!.score, 22);
+
+  store.request('AAPL');
+  await store.idle();
+  const r = store.get('AAPL')!;
+  assert.equal(r.price, 11);
+  assert.deepEqual(r.previous, { price: 10, direction: 'up', score: 22, generatedAt: '2026-11-08T00:00:00.000Z' });
+});
+
+test('refreshStale queues only reports older than the limit; refreshAll queues the rest', async () => {
+  const file = await tmpFile();
+  const store = new ReportStore(file, async (t) => fake(t));
+  store.request('AAPL');
+  store.request('MSFT');
+  await store.idle();
+
+  const later = Date.parse(store.get('AAPL')!.finishedAt!) + 7 * 3_600_000;
+  assert.deepEqual(store.refreshStale(8 * 3_600_000, later), [], 'not stale yet');
+  assert.deepEqual(store.refreshStale(6 * 3_600_000, later).sort(), ['AAPL', 'MSFT']);
+  assert.equal(store.refreshAll(), 0, 'both are already queued');
+  await store.idle();
+  assert.equal(store.refreshAll(), 2);
+  await store.idle();
+});

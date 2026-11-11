@@ -92,6 +92,12 @@ export async function getFinviz(ticker: string): Promise<FinvizData> {
     shortFloat: get('Short Float'),
     beta: get('Beta'),
     earningsDate: get('Earnings'),
+    earningsAt: parseEarningsDate(get('Earnings')),
+    // "EPS/Sales Surpr." holds both numbers: "6.22% 4.28%".
+    epsSurprise: get('EPS/Sales Surpr.')?.split(/\s+/)[0] ?? null,
+    salesSurprise: get('EPS/Sales Surpr.')?.split(/\s+/)[1] ?? null,
+    epsYoYTtm: get('EPS Y/Y TTM'),
+    salesYoYTtm: get('Sales Y/Y TTM'),
     analystRecom: num(get('Recom')),
     targetPrice: target,
     targetUpside: price && target ? ((target - price) / price) * 100 : null,
@@ -109,4 +115,22 @@ export async function getFinviz(ticker: string): Promise<FinvizData> {
   });
 
   return { fundamentals, news };
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/**
+ * Finviz shows the earnings date without a year ("Nov 17 AMC"). It is either the next report or the
+ * one just past, so pick the year that puts it closest to `now`. Returns YYYY-MM-DD.
+ */
+export function parseEarningsDate(raw: string | null, now = new Date()): string | null {
+  const m = raw?.match(/^([A-Za-z]{3})\s+(\d{1,2})\b/);
+  const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
+  if (!m || month < 0) return null;
+  const day = Number(m[2]);
+  const year = now.getUTCFullYear();
+  const best = [year - 1, year, year + 1]
+    .map((y) => Date.UTC(y, month, day))
+    .reduce((a, b) => (Math.abs(b - now.getTime()) < Math.abs(a - now.getTime()) ? b : a));
+  return new Date(best).toISOString().slice(0, 10);
 }

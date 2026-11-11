@@ -1,4 +1,6 @@
 import { computeTechnicals } from './analysis/indicators.ts';
+import { buildEarnings } from './analysis/earnings.ts';
+import { companyTerms, detectEvent, mentionsCompany } from './analysis/events.ts';
 import { evaluateMetrics } from './analysis/metrics.ts';
 import { buildOutlook } from './analysis/outlook.ts';
 import { headlineSentiment, label } from './analysis/sentiment.ts';
@@ -26,7 +28,7 @@ export function mergeNews(lists: RawNews[][], limit = 40): NewsItem[] {
     if (!key || seen.has(key)) continue;
     seen.add(key);
     const s = headlineSentiment(n.title);
-    merged.push({ ...n, titleKo: null, sentiment: Math.round(s * 100) / 100, sentimentLabel: label(s) });
+    merged.push({ ...n, titleKo: null, sentiment: Math.round(s * 100) / 100, sentimentLabel: label(s), event: null });
   }
   return merged
     .sort((a, b) => (b.publishedAt ? Date.parse(b.publishedAt) : 0) - (a.publishedAt ? Date.parse(a.publishedAt) : 0))
@@ -41,7 +43,7 @@ async function settle<T>(name: string, p: Promise<T>) {
   }
 }
 
-export async function analyze(ticker: string): Promise<Analysis> {
+export async function analyze(ticker: string, { translate = true }: { translate?: boolean } = {}): Promise<Analysis> {
   // Price history is required (it also verifies the ticker is a US listing); everything else is best-effort.
   const history = await getHistory(ticker);
   const sym = history.quote.ticker;
@@ -61,12 +63,18 @@ export async function analyze(ticker: string): Promise<Analysis> {
     googleNews.ok ? googleNews.value : [],
   ]);
 
+  const terms = companyTerms(sym, history.quote.name);
+  for (const n of news) n.event = mentionsCompany(n.title, terms) ? detectEvent(n.title) : null;
+
   // Best-effort: news still shows in English if translation fails.
-  const translation = await settle('Google 번역', translateToKorean(news.map((n) => n.title)));
+  const translation = translate
+    ? await settle('Google 번역', translateToKorean(news.map((n) => n.title)))
+    : { name: 'Google 번역', ok: false as const, error: '건너뜀' };
   if (translation.ok) news.forEach((n, i) => (n.titleKo = translation.value[i]));
 
-  const outlook = buildOutlook(history.quote, technicals, fundamentals, news);
-  const summary = buildSummary(history.quote, technicals, fundamentals, news, outlook);
+  const earnings = buildEarnings(fundamentals, history.points, history.volumes);
+  const outlook = buildOutlook(history.quote, technicals, fundamentals, news, earnings);
+  const summary = buildSummary(history.quote, technicals, fundamentals, news, outlook, earnings);
 
   const counts = { positive: 0, negative: 0, neutral: 0 };
   for (const n of news) counts[n.sentimentLabel]++;
@@ -77,6 +85,7 @@ export async function analyze(ticker: string): Promise<Analysis> {
     technicals: tech,
     fundamentals,
     metrics: evaluateMetrics(history.quote, tech, fundamentals),
+    earnings,
     outlook,
     summary,
     news,
@@ -84,7 +93,7 @@ export async function analyze(ticker: string): Promise<Analysis> {
       average: news.length ? Math.round((news.reduce((a, n) => a + n.sentiment, 0) / news.length) * 100) / 100 : 0,
       ...counts,
     },
-    chart: history.points.slice(-126),
+    chart: history.points, // ~1 year of daily closes; the app picks the period to show
     sources: [
       { name: 'Yahoo Finance 시세', ok: true },
       ...[finviz, yahooNews, googleNews, translation].map((s) => (s.ok ? { name: s.name, ok: true } : { name: s.name, ok: false, error: s.error })),

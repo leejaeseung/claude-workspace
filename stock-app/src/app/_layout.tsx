@@ -19,6 +19,8 @@ export default function RootLayout() {
         }}>
         <Stack.Screen name="index" options={{ title: 'US 주식 브리핑' }} />
         <Stack.Screen name="stock/[ticker]" options={{ title: '' }} />
+        <Stack.Screen name="recommend" options={{ title: '상승 전망 TOP 10' }} />
+        <Stack.Screen name="paper" options={{ title: '모의 투자' }} />
       </Stack>
     </>
   );

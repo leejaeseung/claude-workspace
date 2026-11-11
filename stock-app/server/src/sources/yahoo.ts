@@ -102,6 +102,14 @@ export async function getHistory(ticker: string): Promise<History> {
   };
 }
 
+/** Latest regular-session price and when it was set (ms). Cheap: no history. */
+export async function getPrice(ticker: string): Promise<{ price: number; time: number }> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d&includePrePost=false`;
+  const m = (await fetchJson<ChartResponse>(url)).chart.result?.[0]?.meta;
+  if (!m || !Number.isFinite(m.regularMarketPrice)) throw new TickerNotFoundError(ticker);
+  return { price: m.regularMarketPrice, time: m.regularMarketTime * 1000 };
+}
+
 interface SearchResponse {
   quotes: { symbol: string; shortname?: string; longname?: string; exchange?: string; exchDisp?: string; quoteType?: string }[];
 }
