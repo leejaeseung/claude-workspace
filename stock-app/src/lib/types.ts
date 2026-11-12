@@ -1,0 +1,288 @@
+// Copy of server/src/types.ts — keep both in sync.
+
+export type Direction = 'up' | 'neutral' | 'down';
+
+export interface Quote {
+  ticker: string;
+  name: string;
+  exchange: string;
+  currency: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  previousClose: number;
+  dayHigh: number | null;
+  dayLow: number | null;
+  volume: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+  marketTime: string; // ISO
+}
+
+export interface Technicals {
+  sma20: number | null;
+  sma50: number | null;
+  sma200: number | null;
+  rsi14: number | null;
+  macd: number | null;
+  macdSignal: number | null;
+  macdHist: number | null;
+  return1w: number | null;
+  return1m: number | null;
+  return3m: number | null;
+  return6m: number | null;
+  return1y: number | null;
+  volatility: number | null; // annualized, %
+  rangePosition: number | null; // 0..100 within 52w range
+  avgVolume20: number | null;
+  volumeRatio: number | null; // last volume / 20d avg
+}
+
+export interface Fundamentals {
+  sector: string | null;
+  industry: string | null;
+  country: string | null;
+  marketCap: string | null;
+  pe: string | null;
+  forwardPe: string | null;
+  peg: string | null;
+  ps: string | null;
+  epsTtm: string | null;
+  epsNextY: string | null;
+  salesQoQ: string | null;
+  epsQoQ: string | null;
+  profitMargin: string | null;
+  roe: string | null;
+  debtEq: string | null;
+  dividend: string | null;
+  shortFloat: string | null;
+  beta: string | null;
+  earningsDate: string | null; // raw Finviz text, e.g. "Nov 17 AMC"
+  earningsAt?: string | null; // YYYY-MM-DD, the occurrence of earningsDate nearest to collection time
+  epsSurprise?: string | null; // last reported quarter vs. consensus, e.g. "6.22%"
+  salesSurprise?: string | null;
+  epsYoYTtm?: string | null; // trailing twelve months vs. a year earlier
+  salesYoYTtm?: string | null;
+  analystRecom: number | null; // 1 = Strong Buy … 5 = Sell
+  targetPrice: number | null;
+  targetUpside: number | null; // %
+}
+
+export interface NewsItem {
+  title: string;
+  titleKo?: string | null; // Korean translation of the title; absent in reports saved before translation existed
+  url: string;
+  source: string;
+  publishedAt: string | null; // ISO
+  sentiment: number; // -1..1
+  sentimentLabel: 'positive' | 'neutral' | 'negative';
+  event?: NewsEvent | null; // a concrete event recognised in the headline
+}
+
+/** A market-moving event recognised in a headline (analyst action, guidance, earnings, legal…). */
+export interface NewsEvent {
+  key: string;
+  label: string; // Korean, e.g. "목표가 상향"
+  effect: number; // -1..1, positive = bullish
+}
+
+/** The latest quarterly report and how the market took it. */
+export interface EarningsInfo {
+  nextDate: string | null; // YYYY-MM-DD, only when the next report is announced
+  lastDate: string | null; // YYYY-MM-DD, the last report (estimated from trading volume when not known)
+  lastDateEstimated: boolean;
+  timing: 'BMO' | 'AMC' | null; // before market open / after market close
+  epsSurprise: number | null; // %
+  salesSurprise: number | null; // %
+  epsGrowth: number | null; // % quarter vs. same quarter a year earlier
+  salesGrowth: number | null; // %
+  reaction: number | null; // % price move on the first session after the report
+  sinceReport: number | null; // % from the pre-report close to now
+}
+
+export interface Signal {
+  key: string;
+  label: string;
+  value: string;
+  effect: number; // -1..1, positive = bullish
+  weight: number;
+  horizon: 'short' | 'mid';
+  reason: string;
+}
+
+export interface Outlook {
+  direction: Direction;
+  score: number; // -100..100
+  confidence: 'low' | 'medium' | 'high';
+  shortTerm: { direction: Direction; score: number };
+  midTerm: { direction: Direction; score: number };
+  headline: string;
+  signals: Signal[];
+}
+
+export interface PricePoint {
+  t: number; // unix seconds
+  c: number;
+}
+
+export type MetricRating = 'good' | 'neutral' | 'bad';
+export type MetricGroup = '밸류에이션' | '성장성' | '수익성' | '재무 건전성' | '위험·수급' | '기술적 흐름';
+
+/** One key metric with a rule-based verdict. */
+export interface MetricEval {
+  group: MetricGroup;
+  key: string;
+  label: string;
+  value: string; // display string
+  rating: MetricRating;
+  comment: string; // why, in Korean
+}
+
+export interface Analysis {
+  quote: Quote;
+  technicals: Technicals;
+  fundamentals: Fundamentals | null;
+  metrics?: MetricEval[]; // absent in reports saved before metric ratings existed
+  earnings?: EarningsInfo | null; // absent in older reports
+  outlook: Outlook;
+  summary: string[];
+  news: NewsItem[];
+  newsSentiment: { average: number; positive: number; negative: number; neutral: number };
+  chart: PricePoint[];
+  sources: { name: string; ok: boolean; error?: string }[];
+  generatedAt: string;
+  disclaimer: string;
+}
+
+export interface SearchResult {
+  ticker: string;
+  name: string;
+  exchange: string;
+  type: string;
+}
+
+export type ReportStatus = 'queued' | 'running' | 'done' | 'error';
+
+/** One background analysis per ticker. `analysis` keeps the last successful result while a re-run is in progress. */
+export interface ReportSummary {
+  ticker: string;
+  name: string | null;
+  status: ReportStatus;
+  requestedAt: string; // ISO
+  finishedAt: string | null; // ISO, last completed run (success or failure)
+  error: string | null; // set when the latest run failed
+  price: number | null;
+  changePercent: number | null;
+  direction: Direction | null;
+  generatedAt: string | null; // ISO, when `analysis` was collected
+  score?: number | null; // outlook score -100..100
+  earningsAt?: string | null; // YYYY-MM-DD
+  previous?: ReportSnapshot | null; // the collection before `analysis`
+}
+
+/** Headline numbers from the run before the latest one, to show what changed. */
+export interface ReportSnapshot {
+  price: number;
+  direction: Direction;
+  score: number;
+  generatedAt: string; // ISO
+}
+
+export interface Report extends ReportSummary {
+  analysis: Analysis | null;
+}
+
+/** One ranked candidate in the "rising outlook" list. */
+export interface Recommendation {
+  ticker: string;
+  name: string;
+  price: number;
+  changePercent: number;
+  score: number; // outlook score -100..100
+  direction: Direction;
+  confidence: Outlook['confidence'];
+  shortScore: number;
+  midScore: number;
+  headline: string;
+  reasons: string[]; // strongest bullish signals, e.g. "200일 이동평균 대비 +12.3%"
+  risks: string[]; // strongest bearish signals
+  targetUpside: number | null; // %
+  sector: string | null;
+  generatedAt: string; // ISO, when this ticker was analyzed
+}
+
+export interface Recommendations {
+  status: 'idle' | 'scanning';
+  progress: { done: number; total: number } | null; // while scanning
+  scannedAt: string | null; // ISO, last completed scan
+  scanned: number; // tickers ranked in the last scan
+  failed: string[]; // tickers that could not be analyzed in the last scan
+  items: Recommendation[]; // top N by score
+}
+
+/** A stock the paper portfolio currently holds, valued at the latest price. */
+export interface PaperPosition {
+  ticker: string;
+  name: string;
+  shares: number; // fractional shares allowed
+  avgCost: number; // per share, including the buy fee
+  price: number; // latest price
+  value: number;
+  pnl: number; // unrealized, USD
+  pnlPercent: number;
+  weight: number; // % of the portfolio's total value
+  score: number | null; // outlook score in the latest ranking
+  rank: number | null; // position in the latest ranking
+  boughtAt: string; // ISO
+}
+
+export interface PaperTrade {
+  at: string; // ISO
+  side: 'buy' | 'sell';
+  ticker: string;
+  name: string;
+  shares: number;
+  price: number;
+  amount: number; // shares × price, before the fee
+  fee: number;
+  pnl: number | null; // realized profit on a sell, after fees
+  reason: string;
+}
+
+/** Total value over time, with what the same money in SPY would be worth. */
+export interface PaperPoint {
+  t: number; // unix seconds
+  value: number;
+  benchmark: number | null;
+}
+
+export interface PaperRules {
+  maxPositions: number;
+  buyRank: number; // only buy from the top N of the ranking
+  buyScore: number; // ...with at least this outlook score
+  sellScore: number; // sell when the score falls below this
+  sellRank: number; // ...or the stock drops below this rank
+  stopLoss: number; // %, sell when the position is down this much
+  feeRate: number; // per trade, e.g. 0.0025 = 0.25%
+  cooldownDays: number; // don't buy back a stock this soon after selling it
+}
+
+export interface Portfolio {
+  status: 'none' | 'active';
+  rules: PaperRules;
+  startedAt?: string;
+  initial?: number;
+  cash?: number;
+  value?: number; // cash + positions
+  pnl?: number;
+  pnlPercent?: number;
+  realizedPnl?: number;
+  fees?: number;
+  benchmarkPercent?: number | null; // SPY over the same period
+  marketOpen?: boolean;
+  markedAt?: string | null; // last time prices were updated
+  lastRebalanceAt?: string | null;
+  positions?: PaperPosition[];
+  trades?: PaperTrade[]; // newest first
+  history?: PaperPoint[];
+}
