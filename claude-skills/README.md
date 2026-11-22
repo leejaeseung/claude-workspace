@@ -6,6 +6,7 @@
 | 스킬 | 호출 | 설명 |
 |------|------|------|
 | [pre-pr-review](skills/pre-pr-review/SKILL.md) | `/pre-pr-review [base] [--quick\|--deep] [--focus <영역>] [--fix]` | PR 전 심층 코드리뷰. 분야별 서브에이전트 병렬 리뷰 → 반박 에이전트 검증 → 심각도별 리포트와 머지 판정 |
+| [app-ideation](skills/app-ideation/SKILL.md) | `/app-ideation [주제] [--out <디렉토리>]` | 모바일 앱 기획. 후보 발산 → 웹 검색 존재 확인(필수) → 심사위원 6명 서브에이전트 비판 검증(필수) → 기획서. 매일 자동 루틴으로도 실행됨 (결과: 저장소 `app-ideas/`) |
 
 이 문서는 사람과 **Claude Code 둘 다** 읽습니다. 새 컴퓨터에서 Claude Code에게 "claude-skills/README.md를 읽고 설치해줘"라고 요청하면 아래 절차를 따릅니다.
 
