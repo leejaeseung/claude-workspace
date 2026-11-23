@@ -8,7 +8,7 @@
 
 | 앱 | 문서 | 상태 | 단계 | 버전 | 점수 이력 | 정체 | 마지막 갱신 | 다음 과제 |
 |---|---|---|---|---|---|---|---|---|
-| 혈관수첩 | [hyeolgwan-sucheop.md](hyeolgwan-sucheop.md) | ACTIVE | 0 | v1 | 3.17 → 3.00 | 0 | 2026-11-22 | 대상을 혈관 시술 직후 환자로 좁히고 혈관센터 외래 준비 도구로 재설계, 천자 지도를 앞에 세우기, 통과 기준 충족 |
+| 혈관수첩 | [hyeolgwan-sucheop.md](hyeolgwan-sucheop.md) | ACTIVE | 0 | v1.1 | 3.17 → 3.00 → 3.17 | 1 | 2026-11-23 | (마지막 기회: 다음 실패 시 DROPPED) 시술 의사가 QR에 피할 구간을 담아 투석실로 나르는 양방향 천자 처방전으로 재설계, 결과 먼저·위치는 문제 회차만, 혈관센터 의사 요약 수요 근거 |
 
 ## 실행 로그
 
@@ -18,6 +18,7 @@
 | 2026-11-22 14:00 | NEW | 후보 6개 (안부릴레이 외) | 통과 없음 (5개 EXISTS, 안부릴레이 심사 미달 후 market이 찾은 경쟁자로 EXISTS 재판정) | 2.50 | [2026-11-22-1400-no-pass.md](2026-11-22-1400-no-pass.md) |
 | 2026-11-22 20:10 | NEW | 후보 6개 (하교질문 외) | 통과 없음 (5개 EXISTS, 하교질문 심사 미달 후 market이 찾은 ParentSquare Conversation Starters로 EXISTS 재판정) | 3.00 | [2026-11-22-2010-no-pass.md](2026-11-22-2010-no-pass.md) |
 | 2026-11-22 22:31 | NEW | 혈관수첩 / 투석길동무 / 투석 픽업 라이브 | 혈관수첩 유망 후보로 ACTIVE 단계 0 등록 (통과 기준 미달), 투석길동무 탈락(KILL 1, 카풀 순번 앱 EXISTS), 픽업 라이브 EXISTS | 혈관수첩 3.17 → 3.00 / 투석길동무 2.33 → 2.50 | [hyeolgwan-sucheop.md](hyeolgwan-sucheop.md) |
+| 2026-11-23 08:48 | UPGRADE | 혈관수첩 (단계 0, v2 시술 후 천자 지도) | 유지 (통과 기준 미달, 정체 0→1, 유효한 개선만 v1.1 반영). market이 Electronic Cannulation Atlas 발견, DIFFERENTIATED 유지(차별점은 기관 사이 운반뿐) | 3.00 → 3.17 (UR3·C3·M3·F4·B3·R3) | [hyeolgwan-sucheop.md](hyeolgwan-sucheop.md) |
 
 ## 탐색 도메인 기록
 
