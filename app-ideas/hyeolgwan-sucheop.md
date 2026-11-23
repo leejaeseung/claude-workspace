@@ -1,9 +1,11 @@
+> ⛔ 중단 (2026-11-23): 단계 0에서 업그레이드 2회 연속 통과 실패(정체 2). v3 '양방향 천자 처방전' 재심사 평균 3.17(UR3·C3·M3·F4·B3·R3, KILL 0) — 통과 기준 3.5 미달, 직전 3.17 대비 개선 0. 공통 비판: 일반 PTA 후 '피할 구간' 지시 자체가 임상적으로 드물어 처방전 내용이 비기 쉽고, 종이 퇴원 안내문·회신서가 같은 정보를 전달하며, 외래 요약의 '지시 준수 여부'가 투석실 감사 기록이 되고, 서명 없는 QR이 '의사 지시' 권위를 달아 위조·오입력 위험.
+
 # 혈관수첩 (가칭) — 투석혈관 시술 후 12주 기록 도구
 
 > 투석혈관 시술(PTA·혈전제거·신규 동정맥루 첫 천자) 직후 혈액투석 환자가 다음 외래까지 8~12주 동안 투석 회차별 천자 결과와 집에서의 이상 신호를 기록하고, 외래 때 1장 요약으로 들고 가는 기간 한정 도구 (판정·진단 없음)
 
-- 상태: ACTIVE · 단계: 0 (보완 필요) · 버전: v1.1 (v2 업그레이드 시도 실패, 유효한 개선만 반영)
-- 최초 기획일: 2026-11-22 · 마지막 업그레이드: 2026-11-23
+- 상태: DROPPED · 단계: 0 (보완 필요) · 버전: v1.1 (v2·v3 업그레이드 시도 모두 실패)
+- 최초 기획일: 2026-11-22 · 마지막 업그레이드: 2026-11-23 (v3 시도, DROPPED)
 - 최근 심사 결과: 평균 3.17 / 5 (user-reality 3 · creativity 3 · market 3 · feasibility 4 · business 3 · risk 3) — 2026-11-23 UPGRADE 재심사, KILL 0, 통과 기준(평균 3.5) 미달
 - 존재 확인 판정: DIFFERENTIATED (2026-11-23 재확인. 간호사용 전자 천자 아틀라스 발견으로 차별점은 '기관 사이 운반'으로 좁아짐)
 - 사용한 발산 기법: 하루 마찰 일기, 센서 × 상황, 오프라인 행동 디지털화, 제약 강제, 이웃 분야 이식(주사 부위 순환 → 천자 위치)
@@ -164,6 +166,43 @@ market 추가 경쟁자로 존재 확인 재판정 → DIFFERENTIATED 유지(3�
 |---|---|---|---|---|---|---|
 | v1 | 2026-11-22 | 0 | 3.17 → 3.00 | 최초 기획 + 개선 라운드(기록 시점 이동, Qb·VP 기준선, 판정 제거) | 양손이 묶임, 매일 체크 피로, 의료기기 경계 일부 | 투석실 기록과 중복, 수요·유통, 정맥압 잡음 |
 | v2 (시도 실패) → v1.1 | 2026-11-23 | 0 (유지) | 3.17 | 대상을 시술 후 8~12주 환자로 좁히고 천자 지도(구역 탭 + 결과)를 핵심으로, 혈관센터 QR 유통. 심사 미달(평균 3.17 < 3.5)로 단계 유지·정체 +1, 유효한 개선(숫자 삭제, 기간 한정, 알림·보호자 링크 정리, 위험 라벨)만 v1.1에 반영 | 숫자 옮겨 적기, 알림 취약, 로컬·보호자 링크 모순 | 환자 쪽 천자 지도 무효과 반증, 간호사용 Electronic Cannulation Atlas, 투석실 관계·책임, 혈관센터 수요, 시장 연 수백 명 |
+| v3 (시도 실패) | 2026-11-23 | 0 → DROPPED | 3.17 | 양방향 천자 처방전(시술 의사 QR 발급 → 투석실 카드 → 외래 요약) | 환자 기억 기반 천자 지도의 효과 반증(부분), 투석실 첫 설정 부담 | 지시 내용 자체가 드묾, 종이·회신서 대체, QR 진위, 준수 여부=감사 기록 → 정체 2로 중단 |
+
+## 부록: v3 업그레이드 시도 (2026-11-23, DROPPED)
+
+### 시도한 변경 (v3 — 양방향 천자 처방전)
+- 정보 출처를 환자 기억에서 시술 의사 지시로 뒤집음: 의료진용 정적 웹 발급기(서버 없음)에서 혈관 템플릿 위 '시술 구간·N주간 피할 구간·권장 구간'을 QR로 발급 → 환자 폰이 투석실로 운반 → 투석실 화면엔 지시 카드와 지난 2회 위치만(통계 없음), 기간 만료 자동
+- 결과 먼저·문제 회차에만 1.5cm 번호 단 위치, 선택 '간호사 확인', 외래 요약은 날짜 없는 구간 합계 옵션, 장비사 후원 삭제
+
+### 존재 재확인 (U3, 8개 쿼리, 그중 6개 새 쿼리)
+1. "vascular access center to dialysis unit handoff communication cannulation instructions after angioplasty patient-held" (새) — 인계 도구·환자 보유형 지시 문서 없음. NKF 천자 체크리스트, FistulaFirst "신규 AVF 천자 프로토콜은 시술의 포함 팀이 작성", 호주 지침 "수술기록의 시술 후 지시 확인"
+2. "\"fistula passport\" OR \"vascular access passport\" dialysis patient" (대체 표현, 새) — 해당 프로그램·앱 없음
+3. "투석혈관 시술 후 투석실 전달 천자 피할 부위 의사소통" (새) — 국내 인계 절차 자료 없음
+4. "동정맥루 시술 결과 투석실 공유 앱 QR 천자 지시" (새) — 앱·QR 체계 없음
+5. "site:apps.apple.com vascular access dialysis cannulation" — My Vascular Access(의료진·방치), VeinTrain, CVR Calc, AngioDynamics, Precision Nurse — 해당 없음
+6. "app interventional nephrologist share access map with dialysis nurses cannulation zone 2026" (새) — Electronic Cannulation Atlas 외 없음
+7. "site:play.google.com hemodialysis fistula patient app" — Dialysis Pro, Abdelrasoul Dialysis, DiPA, 터키 교육앱 임상시험, nexadia — 변화 없음
+8. "투석 전자의무기록 천자 기록 기능 혈관 지도 투석실 프로그램" (새) — 국내 투석 EMR 천자 지도 공개 자료 없음
+
+market 심사위원이 추가로 찾은 대체재: Ottawa 시술 의뢰·시술 후 투석 오더 지침(https://kcr.csnscn.ca/search-by-keyword/hemodialysis/vascular-access/misc-vascular-access/500-ottawa-guidelines-for-accepting-patients-requiring-vascular-access-interventions-mar-2018/file), NHS Scotland "I have a fistula" 환자 카드(https://rightdecisions.scot.nhs.uk/media/qgtp2r43/dialysis-patient-card_i-have-a-fistula.pdf), UNC Save the Vein 지갑 카드, Niagara Health PowerChart 투석 접근로 양식, 국내 진료의뢰·회송 회신서(팩스·카톡 사진). PTA 후 "바로 사용 가능" 안내(Guy's and St Thomas', UMM Health).
+판정: DIFFERENTIATED 유지(근거 더 약화) — 구간 지시를 기관 사이로 운반하는 도구는 없으나, 종이 카드·회신서가 실질 대체재이고 지시 내용 자체가 드묾.
+
+### 재심사 결과 (v3)
+| 심사위원 | 점수 (직전) | 판정 | 핵심 비판 |
+|---|---|---|---|
+| user-reality | 3 (3) | REVISE | 일반 PTA 후 'N주간 피할 구간' 표준 근거 없음 → 의사가 칸을 비우거나 '제한 없음' 발급. 간호사는 cm 줄자가 아니라 촉지·피부 표시로 정함. 외래 요약 '지시 준수 여부'가 투석실 감사 기록 |
+| creativity | 3 (3) | REVISE | 환자 보유형 기관 간 기록+QR은 산모수첩·회송서와 같은 구조. 새로운 부분(만료 지시)은 종이로 충분, 앱이 필요한 부분(회차 기록)은 반증된 메커니즘 → 팔 사진 위에 그린 만료 지시 + 만료 시 1회 회신 제안 |
+| market | 3 (3) | REVISE | PTA 후 바로 사용 안내가 흔해 지시가 의미 있는 경우는 신규 AVF·혈전제거·스텐트그라프트로 좁음 → 연 500~1,000명. 회신서가 최강 대체재, 투석실이 적대할 유인 |
+| feasibility | 4 (4) | PASS | 서명 없는 정적 발급기라 QR 진위 확인 불가(Ed25519 서명+내장 공개키로 해결 가능). 망분리 PC·EMR 밖 작업. cm 좌표계와 rung 정합이 가장 어려움. MVP 4~6주 가능 |
+| business | 3 (3) | REVISE | 발급 노동에 수가 0, 병원 서식 승인·망분리 장벽. 종이만으로 1번 문제 해결 → 앱은 빠지기 쉬운 고리. B2B 구독 상한 작음, 무료 공익 도구로 확정하라 |
+| risk | 3 (3) | REVISE | 누구나 위조 가능한 QR이 '○○병원 지시'로 표시 → 권위 달린 오정보. '처방전' 명칭 의료법상 오인. 좌·우·AVG limb 오입력, 다른 환자 QR 스캔. '지시 준수 여부'는 위반 기록 |
+
+평균 **3.17** (직전 3.17, ±0), KILL 0, creativity 3·user-reality 3 → 통과 기준 미달.
+RESOLVED 종합: 비판 1(환자 쪽 천자 지도) 해소 2·부분 4, 비판 2(분쟁 자료화) 부분 6, 비판 3(유통 유인) 부분 6.
+
+### 상태 전이 (pipeline.md 기계 적용)
+- `pass` 아님, 3.0 ≤ 3.17 < 3.5, KILL 0 → 유지 + 정체 1→2
+- 정체 ≥ 2 → **DROPPED (정체)**, 또한 '단계 0 상태로 업그레이드 2회 실패' 규칙에도 해당
 
 ## 부록: 발산 기록 (2026-11-22 22:31 UTC NEW)
 - **D1 도메인**: 혈액투석 환자의 일상 (투병 중 가족 간병 — 투석)
